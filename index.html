@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Hiroba Smart Monitor</title>
+<title>Hiroba News Smart Monitor v1.1</title>
 <style>
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -83,10 +83,10 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
 .ti {
   padding:0 18px; font-size:14px; color:rgba(255,255,255,0.85);
-  cursor:pointer; border-right:1px solid rgba(255,255,255,0.12);
-  transition:color 0.2s;
+  border-right:1px solid rgba(255,255,255,0.12);
+  pointer-events: none;
+  user-select: none;
 }
-.ti:hover { color:#fff; }
 .ti-sep { color:rgba(255,255,255,0.20); font-size:14px; padding:0 4px; }
 
 
@@ -153,6 +153,12 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 .wn-stat-v { font-family:'Noto Sans JP',sans-serif; font-size:20px; font-weight:700; color:#fff; margin-top:2px; }
 .wn-stat-u { font-size:9px; opacity:0.5; }
 
+#hourly-block {
+  flex-shrink:0;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,0.10);
+}
+
 #weekly-scroll {
   flex:1; overflow-y:auto;
   padding:10px 12px 16px;
@@ -166,8 +172,9 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 }
 
 #hourly-strip {
-  display:flex; gap:6px; overflow-x:auto; margin-bottom:12px;
-  padding-bottom:4px;
+  display:flex; gap:6px; overflow-x:auto;
+  padding:0 12px 10px;
+  cursor:grab;
 }
 #hourly-strip::-webkit-scrollbar { height:2px; }
 #hourly-strip::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); }
@@ -220,9 +227,8 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 .dis-item {
   font-size:13px; color:rgba(255,255,255,0.85);
   background:rgba(255,71,87,0.10); border:1px solid rgba(255,71,87,0.30);
-  border-radius:6px; padding:3px 9px; cursor:pointer;
+  border-radius:6px; padding:3px 9px;
 }
-.dis-item:hover { background:rgba(255,71,87,0.22); }
 .dis-ok {
   font-size:12px; color:var(--safe);
   display:flex; align-items:center; gap:6px;
@@ -272,6 +278,8 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
   font-size:13px; color:var(--soft); margin-top:6px; line-height:1.65;
 }
 .nc-meta { font-size:11px; color:var(--ghost); margin-top:7px; }
+.nc-desc:empty, .nc-meta:empty { display: none; }
+.nc-meta a { font-size: 12px; }
 
 .loader {
   padding:24px; text-align:center; font-size:13px; color:var(--ghost);
@@ -321,6 +329,33 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 .fx-change.flat { color:var(--ghost); }
 .fx-label { font-size:9px; color:var(--ghost); margin-top:2px; opacity:0.7; }
 
+/* ── compact-clock mode ── */
+body.compact-clock #time-display { font-size: clamp(44px,6vw,62px) !important; }
+body.compact-clock #date-line    { font-size: 13px; }
+body.compact-clock #reiwa-line   { font-size: 12px; }
+body.compact-clock #clock-block  { padding: 12px 16px 10px; }
+
+/* ── compact-news mode ── */
+body.compact-news .nc-desc,
+body.compact-news .nc-meta { display: none; }
+body.compact-news .nc.expanded .nc-desc,
+body.compact-news .nc.expanded .nc-meta { display: block; }
+body.compact-news .nc { cursor: pointer; }
+body.compact-news .nc-title::after {
+  content: ' ›';
+  font-size: 12px;
+  color: var(--ghost);
+  transition: color 0.2s;
+}
+body.compact-news .nc.expanded .nc-title::after { content: ' ‹'; color: var(--accent); }
+
+/* ── mouse-hide mode ── */
+body.mouse-hide, body.mouse-hide * { cursor: none !important; }
+
+/* ── drag-scroll ── */
+.drag-scroll { user-select: none; }
+.drag-scroll.dragging { cursor: grabbing !important; }
+
 @media (max-width: 700px) {
   :root { --left-w: 100vw; }
   #app {
@@ -364,9 +399,13 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
       <div class="loader">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
     </div>
 
-    <div id="weekly-scroll">
+    <div id="hourly-block">
+      <div class="weekly-label" style="padding:8px 12px 4px;margin:0;">今日の時間別</div>
+      <div id="hourly-strip" class="drag-scroll"></div>
+    </div>
+
+    <div id="weekly-scroll" class="drag-scroll">
       <div class="weekly-label">週間予報</div>
-      <div id="hourly-strip"></div>
       <div id="forecast-list"></div>
     </div>
 
@@ -391,7 +430,7 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
       </div>
     </div>
 
-    <div id="news-scroll">
+    <div id="news-scroll" class="drag-scroll">
       <div class="loader">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
     </div>
 
@@ -524,19 +563,25 @@ async function loadNews() {
     const all   = feeds.flatMap(f => f.items||[]);
 
     const tHtml = all.slice(0,35).map(it =>
-      `<span class="ti" onclick="open('${h(it.link)}','_blank')">▶ ${h(it.title)}</span>`
+      `<span class="ti">▶ ${h(it.title)}</span>`
     ).join('<span class="ti-sep">●</span>');
     document.getElementById('ticker-inner').innerHTML = tHtml + '<span class="ti-sep">●</span>' + tHtml;
 
     const ns = document.getElementById('news-scroll');
-    const cards = all.slice(0, 40).map(it => `
-      <div class="nc">
-        <a href="${h(it.link)}" target="_blank" rel="noopener">
-          <div class="nc-title">${h(it.title)}</div>
-          ${it.desc?`<div class="nc-desc">${h(it.desc)}</div>`:''}
-          ${it.pub ?`<div class="nc-meta">${h(it.pub.slice(0,22))}</div>`:''}
-        </a>
-      </div>`).join('');
+    const cards = all.slice(0, 40).map(it => {
+      const titleEl = CFG.compactNews
+        ? `<div class="nc-title">${h(it.title)}</div>`
+        : `<a href="${h(it.link)}" target="_blank" rel="noopener"><div class="nc-title">${h(it.title)}</div></a>`;
+      const linkEl = it.link
+        ? `<div class="nc-meta"><a href="${h(it.link)}" target="_blank" rel="noopener" style="color:var(--accent)">🔗 記事を開く</a></div>`
+        : '';
+      return `<div class="nc">
+        ${titleEl}
+        <div class="nc-desc">${h(it.desc||'')}</div>
+        <div class="nc-meta">${h((it.pub||'').slice(0,22))}</div>
+        ${linkEl}
+      </div>`;
+    }).join('');
     ns.innerHTML = `<div class="news-grid">${cards}</div>`;
   } catch(e) {
     document.getElementById('news-scroll').innerHTML =
@@ -560,7 +605,7 @@ async function loadDisaster() {
       bar.classList.add('visible');
       bar.querySelector('.dis-icon').textContent = '🚨';
       items.innerHTML = all.slice(0,8).map(it =>
-        `<span class="dis-item" onclick="open('${h(it.link)}','_blank')" title="${h(it.desc)}">${h(it.title)}</span>`
+        `<span class="dis-item" title="${h(it.desc)}">${h(it.title)}</span>`
       ).join('');
     }
   } catch {
@@ -659,6 +704,62 @@ function renderForex() {
   }).join('');
   document.getElementById('forex-cards').innerHTML = html;
 }
+
+// ── apply server-injected config ──────────────────────────────
+const CFG = window.MONITOR_CONFIG || {};
+if (CFG.compactClock)  document.body.classList.add('compact-clock');
+if (CFG.compactNews)   document.body.classList.add('compact-news');
+if (CFG.mouseHide)     document.body.classList.add('mouse-hide');
+
+// ── drag / touch scroll ───────────────────────────────────────
+function enableDragScroll(el) {
+  let startY = 0, startX = 0, scrollY = 0, scrollX = 0, dragging = false;
+
+  function onDown(e) {
+    dragging = true;
+    startY  = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+    startX  = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+    scrollY = el.scrollTop;
+    scrollX = el.scrollLeft;
+    el.classList.add('dragging');
+    if (e.type === 'mousedown') e.preventDefault();
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const cy = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+    const cx = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+    el.scrollTop  = scrollY - (cy - startY);
+    el.scrollLeft = scrollX - (cx - startX);
+  }
+  function onUp() { dragging = false; el.classList.remove('dragging'); }
+
+  el.addEventListener('mousedown',  onDown,  { passive: false });
+  el.addEventListener('mousemove',  onMove);
+  el.addEventListener('mouseup',    onUp);
+  el.addEventListener('mouseleave', onUp);
+  el.addEventListener('touchstart', onDown,  { passive: true });
+  el.addEventListener('touchmove',  onMove,  { passive: true });
+  el.addEventListener('touchend',   onUp);
+}
+
+document.querySelectorAll('.drag-scroll').forEach(enableDragScroll);
+
+// ── compact-news card expand (delegate on news-scroll) ────────
+document.getElementById('news-scroll').addEventListener('click', function(e) {
+  if (!CFG.compactNews) return;
+  const card = e.target.closest('.nc');
+  if (card) {
+    this.querySelectorAll('.nc.expanded').forEach(c => { if (c !== card) c.classList.remove('expanded'); });
+    card.classList.toggle('expanded');
+    e.stopPropagation();
+  }
+});
+document.addEventListener('click', function(e) {
+  if (!CFG.compactNews) return;
+  if (!e.target.closest('#news-scroll')) {
+    document.querySelectorAll('.nc.expanded').forEach(c => c.classList.remove('expanded'));
+  }
+});
 
 loadWeather();
 loadNews();

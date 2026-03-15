@@ -173,7 +173,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def _html(self):
         fp = os.path.join(os.path.dirname(__file__),"index.html")
-        body = open(fp,"rb").read()
+        html = open(fp, encoding="utf-8").read()
+        inject = (
+            f'<script>window.MONITOR_CONFIG='
+            f'{{"compactClock":{str(self.config.get("compact_clock",False)).lower()},'
+            f'"compactNews":{str(self.config.get("compact_news",False)).lower()},'
+            f'"mouseHide":{str(self.config.get("mouse_hide",False)).lower()}}};</script>'
+        )
+        html = html.replace("</head>", inject + "</head>", 1)
+        body = html.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type","text/html; charset=utf-8")
         self.send_header("Content-Length", len(body))
@@ -181,12 +189,18 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser(description="News Smart Monitor")
-    ap.add_argument("--city",  default="東京都")
-    ap.add_argument("--lat",   default=35.6895, type=float)
-    ap.add_argument("--lon",   default=139.6917, type=float)
-    ap.add_argument("--port",  default=8765, type=int)
-    ap.add_argument("--rss",   nargs="*")
+    ap.add_argument("--city",         default="東京都")
+    ap.add_argument("--lat",          default=35.6895, type=float)
+    ap.add_argument("--lon",          default=139.6917, type=float)
+    ap.add_argument("--port",         default=8765, type=int)
+    ap.add_argument("--rss",          nargs="*")
     ap.add_argument("--no-default-rss", action="store_true")
+    ap.add_argument("--compact-clock", action="store_true",
+                    help="Reduce clock font size (useful on small/Linux displays)")
+    ap.add_argument("--compact-news",  action="store_true",
+                    help="Show only news titles; click to expand detail + link")
+    ap.add_argument("--mouse-hide",    action="store_true",
+                    help="Hide mouse cursor (for touch-only displays)")
     args = ap.parse_args()
 
     feeds = [] if args.no_default_rss else list(DEFAULT_RSS_FEEDS)
@@ -194,9 +208,12 @@ def main():
         for u in args.rss:
             feeds.append({"name": urllib.parse.urlparse(u).netloc, "url": u})
 
-    Handler.config = {"city":args.city,"lat":args.lat,"lon":args.lon,"feeds":feeds}
+    Handler.config = {"city":args.city,"lat":args.lat,"lon":args.lon,"feeds":feeds,
+                      "compact_clock": args.compact_clock,
+                      "compact_news":  args.compact_news,
+                      "mouse_hide":    args.mouse_hide}
 
-    print(f"Hiroba News Smart Monitor v1.0\nhttp://localhost:{args.port}")
+    print(f"Hiroba News Smart Monitor v1.1\nhttp://localhost:{args.port}")
     try:
         HTTPServer(("localhost", args.port), Handler).serve_forever()
     except KeyboardInterrupt:
