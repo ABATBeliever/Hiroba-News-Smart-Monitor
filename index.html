@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Hiroba Smart Monitor</title>
+<style>
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:          #0b0f14;
+  --panel:       rgba(255,255,255,0.055);
+  --panel-hover: rgba(255,255,255,0.085);
+  --border:      rgba(255,255,255,0.10);
+  --border-h:    rgba(255,255,255,0.22);
+  --blur:        blur(18px);
+  --text:        rgba(255,255,255,0.92);
+  --soft:        rgba(255,255,255,0.55);
+  --ghost:       rgba(255,255,255,0.28);
+  --accent:      #5ec4ff;
+  --accent-warm: #ffb347;
+  --danger:      #ff4757;
+  --danger-bg:   rgba(255,71,87,0.12);
+  --danger-bdr:  rgba(255,71,87,0.40);
+  --safe:        #2ed573;
+  --ticker-h:    44px;
+  --left-w:      310px;
+  --header-h:    0px;
+}
+
+html, body { width:100%; height:100dvh; overflow:hidden; background:var(--bg); }
+body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
+
+#bg-wrap { position:fixed; inset:0; z-index:0; }
+.bg-s {
+  position:absolute; inset:0;
+  background-size:cover; background-position:center;
+  opacity:0; transition:opacity 2s ease;
+}
+.bg-s.on { opacity:1; }
+#bg-ov {
+  position:fixed; inset:0; z-index:1;
+  background:linear-gradient(135deg,rgba(0,0,0,0.62) 0%,rgba(0,0,0,0.38) 60%,rgba(0,0,0,0.55) 100%);
+}
+
+#app {
+  position:fixed; inset:0; z-index:10;
+  display:grid;
+  grid-template-rows: var(--ticker-h) 1fr;
+  grid-template-columns: var(--left-w) 1fr;
+}
+
+#ticker-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display:flex; align-items:center;
+  background:rgba(0,0,0,0.50);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  overflow:hidden;
+}
+.ticker-label {
+  flex-shrink:0;
+  padding:0 14px;
+  font-family:'Noto Sans JP',sans-serif;
+  font-size:11px; font-weight:500; letter-spacing:2px;
+  color:rgba(255,255,255,0.55); background:rgba(255,255,255,0.08);
+  height:100%; display:flex; align-items:center; border-right:1px solid var(--border);
+}
+.ticker-mask { flex:1; overflow:hidden; position:relative; }
+
+.ticker-mask::before, .ticker-mask::after {
+  content:''; position:absolute; top:0; bottom:0; width:32px; z-index:2; pointer-events:none;
+}
+.ticker-mask::before { left:0;  background:linear-gradient(to right, rgba(0,0,0,0.5), transparent); }
+.ticker-mask::after  { right:0; background:linear-gradient(to left,  rgba(0,0,0,0.5), transparent); }
+#ticker-inner {
+  display:flex; align-items:center; gap:0; white-space:nowrap;
+  animation:ticker 80s linear infinite;
+}
+#ticker-inner:hover { animation-play-state:paused; }
+@keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.ti {
+  padding:0 18px; font-size:14px; color:rgba(255,255,255,0.85);
+  cursor:pointer; border-right:1px solid rgba(255,255,255,0.12);
+  transition:color 0.2s;
+}
+.ti:hover { color:#fff; }
+.ti-sep { color:rgba(255,255,255,0.20); font-size:14px; padding:0 4px; }
+
+
+#left-col {
+  grid-column:1; grid-row:2;
+  display:flex; flex-direction:column;
+  border-right:1px solid var(--border);
+  overflow:hidden;
+}
+
+#clock-block {
+  flex-shrink:0;
+  padding:18px 20px 14px;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,0.25);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+}
+
+#time-display {
+  font-family:'Noto Sans JP', sans-serif;
+  font-size:clamp(72px,9vw,96px);
+  font-weight:700; letter-spacing:2px; line-height:1;
+  color:#fff;
+}
+#time-sep { opacity:0.3; }
+
+#date-line {
+  margin-top:8px;
+  font-family:'Noto Sans JP', sans-serif;
+  font-size:16px; font-weight:500; color:rgba(255,255,255,0.88);
+  letter-spacing:0.5px;
+}
+#reiwa-line {
+  margin-top:4px; font-size:14px; font-weight:400; color:rgba(255,255,255,0.55); letter-spacing:1px;
+}
+#city-line {
+  margin-top:10px; font-size:13px; letter-spacing:1px; color:rgba(255,255,255,0.40);
+}
+
+#weather-now {
+  flex-shrink:0;
+  padding:14px 20px;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,0.15);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+}
+.wn-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.wn-icon { font-size:52px; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
+.wn-temp {
+  font-family:'Noto Sans JP', sans-serif;
+  font-size:46px; font-weight:700; color:#fff; line-height:1;
+}
+.wn-unit { font-size:18px; opacity:0.5; }
+.wn-desc { font-size:16px; font-weight:500; color:rgba(255,255,255,0.85); margin-top:4px; }
+.wn-feels { font-size:14px; color:rgba(255,255,255,0.50); }
+
+.wn-stats { display:flex; gap:8px; }
+.wn-stat {
+  flex:1; text-align:center;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--border); border-radius:10px; padding:7px 4px;
+}
+.wn-stat-l { font-size:11px; letter-spacing:0.5px; color:rgba(255,255,255,0.45); }
+.wn-stat-v { font-family:'Noto Sans JP',sans-serif; font-size:20px; font-weight:700; color:#fff; margin-top:2px; }
+.wn-stat-u { font-size:9px; opacity:0.5; }
+
+#weekly-scroll {
+  flex:1; overflow-y:auto;
+  padding:10px 12px 16px;
+}
+#weekly-scroll::-webkit-scrollbar { width:3px; }
+#weekly-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+
+.weekly-label {
+  font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--ghost); margin-bottom:8px; padding-left:4px;
+}
+
+#hourly-strip {
+  display:flex; gap:6px; overflow-x:auto; margin-bottom:12px;
+  padding-bottom:4px;
+}
+#hourly-strip::-webkit-scrollbar { height:2px; }
+#hourly-strip::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); }
+.hc {
+  flex-shrink:0; text-align:center; min-width:56px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--border); border-radius:10px; padding:6px 4px;
+}
+.hc-t  { font-size:12px; color:var(--ghost); }
+.hc-i  { font-size:22px; margin:4px 0; }
+.hc-tp { font-family:'Noto Sans JP',sans-serif; font-size:14px; font-weight:700; color:#fff; }
+
+.fc-card {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px;
+  border-radius:10px; margin-bottom:5px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);
+  transition:background 0.2s;
+}
+.fc-card:hover { background:rgba(255,255,255,0.09); }
+.fc-card.today { border-color:rgba(94,196,255,0.4); background:rgba(94,196,255,0.08); }
+.fc-day  { width:52px; font-size:13px; color:var(--soft); }
+.fc-day b { font-size:14px; color:#fff; display:block; }
+.fc-ico  { font-size:26px; width:30px; text-align:center; }
+.fc-d    { flex:1; font-size:13px; color:var(--soft); }
+.fc-tp   { text-align:right; }
+.fc-hi   { font-family:'Noto Sans JP',sans-serif; font-size:16px; font-weight:700; color:var(--accent-warm); }
+.fc-lo   { font-family:'Noto Sans JP',sans-serif; font-size:15px; font-weight:500; color:#87ceeb; }
+.fc-pp   { font-size:11px; color:var(--ghost); }
+
+#right-col {
+  grid-column:2; grid-row:2;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+
+#disaster-bar {
+  flex-shrink:0; display:none;
+  padding:8px 16px;
+  background:var(--danger-bg);
+  border-bottom:1px solid var(--danger-bdr);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+}
+#disaster-bar.visible { display:flex; align-items:flex-start; gap:10px; }
+.dis-icon { font-size:20px; flex-shrink:0; margin-top:1px; }
+.dis-content { flex:1; }
+.dis-title { font-size:14px; font-weight:700; color:var(--danger); letter-spacing:1px; margin-bottom:5px; }
+.dis-items { display:flex; flex-wrap:wrap; gap:6px; }
+.dis-item {
+  font-size:13px; color:rgba(255,255,255,0.85);
+  background:rgba(255,71,87,0.10); border:1px solid rgba(255,71,87,0.30);
+  border-radius:6px; padding:3px 9px; cursor:pointer;
+}
+.dis-item:hover { background:rgba(255,71,87,0.22); }
+.dis-ok {
+  font-size:12px; color:var(--safe);
+  display:flex; align-items:center; gap:6px;
+}
+
+#news-scroll {
+  flex:1; overflow-y:auto;
+  padding:14px 14px 20px;
+}
+#news-scroll::-webkit-scrollbar { width:3px; }
+#news-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+
+.feed-group { margin-bottom:18px; }
+.feed-name {
+  font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--ghost); margin-bottom:9px; padding:0 2px;
+  display:flex; align-items:center; gap:8px;
+}
+.feed-name::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.news-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap:8px;
+}
+
+.nc {
+  background:var(--panel);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--border);
+  border-radius:12px; padding:15px 16px;
+  cursor:pointer; transition:background 0.2s, border-color 0.2s, transform 0.15s;
+  border-left:3px solid transparent;
+}
+.nc:hover {
+  background:var(--panel-hover);
+  border-color:var(--border-h);
+  border-left-color:var(--accent);
+  transform:translateY(-1px);
+}
+.nc a { text-decoration:none; color:inherit; display:block; }
+.nc-title {
+  font-size:15px; font-weight:700; line-height:1.6; color:#fff;
+}
+.nc:hover .nc-title { color:var(--accent); }
+.nc-desc {
+  font-size:13px; color:var(--soft); margin-top:6px; line-height:1.65;
+}
+.nc-meta { font-size:11px; color:var(--ghost); margin-top:7px; }
+
+.loader {
+  padding:24px; text-align:center; font-size:13px; color:var(--ghost);
+  animation:fp 1.4s ease-in-out infinite;
+}
+@keyframes fp { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+#forex-panel {
+  flex-shrink:0;
+  padding:10px 14px 10px;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,0.18);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+}
+.forex-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:8px;
+}
+.forex-title {
+  font-size:11px; letter-spacing:2px; color:var(--ghost); text-transform:uppercase;
+}
+.forex-updated { font-size:10px; color:var(--ghost); opacity:0.7; }
+.forex-tabs { display:flex; gap:4px; }
+.forex-tab {
+  font-size:10px; padding:2px 8px; border-radius:4px; cursor:pointer;
+  border:1px solid var(--border); color:var(--ghost);
+  background:transparent; transition:all 0.15s;
+}
+.forex-tab.active {
+  background:rgba(94,196,255,0.15); border-color:var(--accent); color:var(--accent);
+}
+.forex-cards { display:flex; gap:7px; }
+.fx-card {
+  flex:1; background:rgba(255,255,255,0.05);
+  border:1px solid var(--border); border-radius:10px;
+  padding:8px 10px; min-width:0;
+}
+.fx-pair { font-size:14px; letter-spacing:1px; color:rgba(255,255,255,0.75); margin-bottom:5px; font-weight:600; }
+.fx-rate {
+  font-family:'Noto Sans JP',sans-serif;
+  font-size:20px; font-weight:700; color:#fff; line-height:1.1;
+}
+.fx-rate span { font-size:11px; font-weight:400; opacity:0.5; margin-left:1px; }
+.fx-change { font-size:12px; font-weight:600; margin-top:4px; }
+.fx-change.up   { color:#2ed573; }
+.fx-change.down { color:#ff4757; }
+.fx-change.flat { color:var(--ghost); }
+.fx-label { font-size:9px; color:var(--ghost); margin-top:2px; opacity:0.7; }
+
+@media (max-width: 700px) {
+  :root { --left-w: 100vw; }
+  #app {
+    grid-template-rows: var(--ticker-h) auto 1fr;
+    grid-template-columns: 1fr;
+  }
+  #left-col  { grid-column:1; grid-row:2; max-height:55vh; }
+  #right-col { grid-column:1; grid-row:3; }
+}
+</style>
+</head>
+<body>
+
+<div id="bg-wrap">
+  <div class="bg-s" id="bg-a"></div>
+  <div class="bg-s" id="bg-b"></div>
+</div>
+<div id="bg-ov"></div>
+
+<div id="app">
+
+  <div id="ticker-bar">
+    <div class="ticker-label">LIVE NEWS</div>
+    <div class="ticker-mask">
+      <div id="ticker-inner"><span class="loader" style="padding:0 20px">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</span></div>
+    </div>
+  </div>
+
+  <div id="left-col">
+
+    <div id="clock-block">
+      <div id="time-display">
+        <div style="display:flex;align-items:baseline;gap:4px"><span id="th">--</span><span id="time-sep">:</span><span id="tm">--</span></div><div id="ts" style="font-size:0.28em;opacity:0.40;letter-spacing:2px;margin-top:2px;text-align:right">--</div>
+      </div>
+      <div id="date-line">----年 -月 -日（-）</div>
+      <div id="reiwa-line">令和--年 / 干支 --</div>
+      <div id="city-line">📍 …</div>
+    </div>
+
+    <div id="weather-now">
+      <div class="loader">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
+    </div>
+
+    <div id="weekly-scroll">
+      <div class="weekly-label">週間予報</div>
+      <div id="hourly-strip"></div>
+      <div id="forecast-list"></div>
+    </div>
+
+  </div>
+
+  <div id="right-col">
+
+    <div id="disaster-bar">
+      <div class="dis-icon">🚨</div>
+      <div class="dis-content">
+        <div class="dis-title">防災・緊急情報</div>
+        <div class="dis-items" id="disaster-items"></div>
+      </div>
+    </div>
+
+    <div id="forex-panel">
+      <div class="forex-cards">
+        <span class="forex-updated" id="forex-updated"></span>
+      </div>
+      <div class="forex-cards" id="forex-cards">
+        <div class="loader" style="padding:8px;width:100%">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
+      </div>
+    </div>
+
+    <div id="news-scroll">
+      <div class="loader">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+const DAY  = ['日','月','火','水','木','金','土'];
+const ETOS = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const JIKKAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+
+const bgA = document.getElementById('bg-a');
+const bgB = document.getElementById('bg-b');
+let bgSide = 'a', bgList = [];
+
+(async () => {
+  try { const r = await fetch('/api/images'); if(r.ok) bgList = await r.json(); } catch{}
+  if (bgList.length) showBg();
+})();
+
+function showBg() {
+  if (!bgList.length) return;
+  const url  = bgList[Math.floor(Math.random()*bgList.length)];
+  const next = bgSide==='a' ? bgB : bgA;
+  const prev = bgSide==='a' ? bgA : bgB;
+  next.style.backgroundImage = `url('${url}')`;
+  next.classList.add('on');
+  setTimeout(() => prev.classList.remove('on'), 2100);
+  bgSide = bgSide==='a' ? 'b' : 'a';
+}
+setInterval(showBg, 30000);
+
+function reiwaYear(y) { return y - 2018; }
+
+function kanshi(y) {
+  const jk = JIKKAN[(y - 4) % 10];
+  const et = ETOS[(y - 4) % 12];
+  return jk + et;
+}
+
+function tick() {
+  const n = new Date();
+  const y = n.getFullYear(), mo = n.getMonth()+1, d = n.getDate();
+  const hh = String(n.getHours()).padStart(2,'0');
+  const mm = String(n.getMinutes()).padStart(2,'0');
+  const ss = String(n.getSeconds()).padStart(2,'0');
+
+  document.getElementById('th').textContent = hh;
+  document.getElementById('tm').textContent = mm;
+  document.getElementById('ts').textContent = ss;
+
+  document.getElementById('time-sep').style.opacity = n.getSeconds()%2===0 ? '1' : '0.15';
+
+  document.getElementById('date-line').textContent =
+    `${y}年 ${mo}月 ${d}日（${DAY[n.getDay()]}）`;
+  document.getElementById('reiwa-line').textContent =
+    `令和${reiwaYear(y)}年 / 干支 ${kanshi(y)}`;
+}
+setInterval(tick, 1000); tick();
+
+async function loadWeather() {
+  try {
+    const w = await (await fetch('/api/weather')).json();
+    if (w.error) throw new Error(w.error);
+
+    document.getElementById('city-line').textContent = '📍 ' + w.city;
+
+    document.getElementById('weather-now').innerHTML = `
+      <div class="wn-row">
+        <div class="wn-icon">${w.icon}</div>
+        <div>
+          <div class="wn-temp">${w.temp}<span class="wn-unit">°C</span></div>
+          <div class="wn-desc">${h(w.desc)}</div>
+          <div class="wn-feels">体感 ${w.feels}°C</div>
+        </div>
+      </div>
+      <div class="wn-stats">
+        <div class="wn-stat">
+          <div class="wn-stat-l">湿度</div>
+          <div class="wn-stat-v">${w.humidity}<span class="wn-stat-u">%</span></div>
+        </div>
+        <div class="wn-stat">
+          <div class="wn-stat-l">風速</div>
+          <div class="wn-stat-v">${w.wind}<span class="wn-stat-u">km/h</span></div>
+        </div>
+        <div class="wn-stat">
+          <div class="wn-stat-l">降水</div>
+          <div class="wn-stat-v">${w.precip}<span class="wn-stat-u">mm</span></div>
+        </div>
+      </div>`;
+
+    document.getElementById('hourly-strip').innerHTML =
+      (w.hourly||[]).map(x => `
+        <div class="hc">
+          <div class="hc-t">${x.time}</div>
+          <div class="hc-i">${x.icon}</div>
+          <div class="hc-tp">${x.temp}°</div>
+        </div>`).join('');
+
+    const lbls = ['今日','明日','明後日'];
+    document.getElementById('forecast-list').innerHTML =
+      (w.forecast||[]).map((f,i) => {
+        const dt  = new Date(f.date);
+        const day = lbls[i] || `${dt.getMonth()+1}/${dt.getDate()}`;
+        const wd  = DAY[dt.getDay()];
+        return `<div class="fc-card${i===0?' today':''}">
+          <div class="fc-day"><b>${day}</b>${i>0?wd+'曜':''}</div>
+          <div class="fc-ico">${f.icon}</div>
+          <div class="fc-d">${h(f.desc)}</div>
+          <div class="fc-tp">
+            <div class="fc-hi">↑${f.max}°</div>
+            <div class="fc-lo">↓${f.min}°</div>
+            <div class="fc-pp">💧${f.precip}mm</div>
+          </div>
+        </div>`;
+      }).join('');
+
+  } catch(e) {
+    document.getElementById('weather-now').innerHTML =
+      `<div class="loader">天気取得失敗<br><small>${h(e.message)}</small></div>`;
+  }
+}
+
+async function loadNews() {
+  try {
+    const feeds = await (await fetch('/api/news')).json();
+    const all   = feeds.flatMap(f => f.items||[]);
+
+    const tHtml = all.slice(0,35).map(it =>
+      `<span class="ti" onclick="open('${h(it.link)}','_blank')">▶ ${h(it.title)}</span>`
+    ).join('<span class="ti-sep">●</span>');
+    document.getElementById('ticker-inner').innerHTML = tHtml + '<span class="ti-sep">●</span>' + tHtml;
+
+    const ns = document.getElementById('news-scroll');
+    const cards = all.slice(0, 40).map(it => `
+      <div class="nc">
+        <a href="${h(it.link)}" target="_blank" rel="noopener">
+          <div class="nc-title">${h(it.title)}</div>
+          ${it.desc?`<div class="nc-desc">${h(it.desc)}</div>`:''}
+          ${it.pub ?`<div class="nc-meta">${h(it.pub.slice(0,22))}</div>`:''}
+        </a>
+      </div>`).join('');
+    ns.innerHTML = `<div class="news-grid">${cards}</div>`;
+  } catch(e) {
+    document.getElementById('news-scroll').innerHTML =
+      `<div class="loader">ニュース取得失敗: ${h(e.message)}</div>`;
+  }
+}
+
+async function loadDisaster() {
+  try {
+    const feeds = await (await fetch('/api/disaster')).json();
+    const bar   = document.getElementById('disaster-bar');
+    const items = document.getElementById('disaster-items');
+    const all   = feeds.flatMap(f => f.items||[]);
+
+    if (!all.length) {
+
+      bar.classList.add('visible');
+      bar.querySelector('.dis-icon').textContent = '✅';
+      items.innerHTML = '<span class="dis-ok">現在、発令中の緊急情報はありません</span>';
+    } else {
+      bar.classList.add('visible');
+      bar.querySelector('.dis-icon').textContent = '🚨';
+      items.innerHTML = all.slice(0,8).map(it =>
+        `<span class="dis-item" onclick="open('${h(it.link)}','_blank')" title="${h(it.desc)}">${h(it.title)}</span>`
+      ).join('');
+    }
+  } catch {
+  }
+}
+
+function h(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const FX_PAIRS = [
+  { base:'usd', label:'USD/JPY 米ドル/日本円'},
+  { base:'eur', label:'EUR/JPY ユーロ/日本円'},
+  { base:'cny', label:'CNY/JPY 人民元/日本円'},
+];
+const fxPeriod = '1w';
+let fxData   = {};
+
+function isoDate(offsetDays=0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0,10);
+}
+
+async function fetchRate(dateStr, base) {
+  const urls = [
+    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateStr}/v1/currencies/${base}.min.json`,
+    `https://${dateStr}.currency-api.pages.dev/v1/currencies/${base}.min.json`,
+  ];
+  for (const url of urls) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      return j[base]['jpy'];
+    } catch {}
+  }
+  return null;
+}
+
+async function loadForex() {
+  const yday     = isoDate(-1);
+  const lastWeek = isoDate(-7);
+  try {
+    const bases = FX_PAIRS.map(p => p.base);
+    const [lt, yd, wk] = await Promise.all([
+      Promise.all(bases.map(b => fetchRate('latest', b))),
+      Promise.all(bases.map(b => fetchRate(yday,     b))),
+      Promise.all(bases.map(b => fetchRate(lastWeek, b))),
+    ]);
+    fxData = { latest:{}, prev1d:{}, prev1w:{} };
+    bases.forEach((b,i) => {
+      fxData.latest[b] = lt[i];
+      fxData.prev1d[b] = yd[i];
+      fxData.prev1w[b] = wk[i];
+    });
+    const now = new Date();
+    document.getElementById('forex-updated').textContent =
+      `最終更新 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    renderForex();
+  } catch(e) {
+    document.getElementById('forex-cards').innerHTML =
+      `<div class="loader" style="padding:8px;width:100%">取得失敗: ${h(e.message)}</div>`;
+  }
+}
+
+function renderForex() {
+  if (!fxData.latest) return;
+  const prev  = fxData.prev1w;
+  const label = '前週比';
+  const html  = FX_PAIRS.map(p => {
+    const cur = fxData.latest[p.base];
+    const old = prev[p.base];
+    if (cur == null) return `
+      <div class="fx-card">
+        <div class="fx-pair">${p.label}</div>
+        <div class="fx-rate">—</div>
+      </div>`;
+    const diff  = (old != null) ? cur - old : null;
+    const pct   = (old != null && old !== 0) ? (diff / old * 100) : null;
+    const sign  = diff > 0 ? '+' : '';
+    const cls   = diff == null ? 'flat' : diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+    const arrow = diff == null ? '─' : diff > 0 ? '▲' : diff < 0 ? '▼' : '─';
+    const changeHtml = diff != null
+      ? `<div class="fx-change ${cls}">${arrow} ${sign}${diff.toFixed(2)} (${sign}${pct.toFixed(2)}%)</div>`
+      : `<div class="fx-change flat">─</div>`;
+    return `
+      <div class="fx-card">
+        <div class="fx-pair">${p.label}</div>
+        <div class="fx-rate">${cur.toFixed(2)}<span>円</span></div>
+        ${changeHtml}
+        <div class="fx-label">${label}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('forex-cards').innerHTML = html;
+}
+
+loadWeather();
+loadNews();
+loadDisaster();
+loadForex();
+setInterval(loadWeather,  10*60*1000);
+setInterval(loadNews,      5*60*1000);
+setInterval(loadDisaster,  3*60*1000);
+setInterval(loadForex,    60*60*1000);
+
+setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
+</script>
+</body>
+</html>
