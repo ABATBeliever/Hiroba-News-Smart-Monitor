@@ -3,7 +3,7 @@
 リアルタイムで天気・ニュース・防災情報を1画面に表示する、
 超軽量ローカル Web ダッシュボードです。  
 
-![サンプル画像](./sample-v1.1.png)
+![サンプル画像](./sample-1.1.png)
 
 ---
 
@@ -49,6 +49,7 @@ python3 run.py
 | `--compact-clock` | なし | 時計フォントを縮小（時計がはみ出てしまう場合に仕様） |
 | `--compact-news` | なし | ニュースをタイトルのみ表示し、タップで詳細展開するモード |
 | `--mouse-hide` | なし | マウスカーソルを非表示にする（タッチパネル端末向け） |
+| `--wake-lock` | なし | 画面が暗くなるのをWakeLockAPIを利用し阻止するよう試行する |
 
 ### 使用例
 
@@ -62,8 +63,8 @@ python run.py --rss https://example.com/feed.xml
 # デフォルトRSSを無効にして独自フィードのみ
 python run.py --no-default-rss --rss https://example.com/feed.xml
 
-# タッチパネル端末向け（カーソル非表示・コンパクトニュース）
-python run.py --mouse-hide --compact-news
+# タッチパネル端末向け（カーソル非表示・コンパクトニュース・画面が暗くなるのを防止するよう試行）
+python run.py --mouse-hide --compact-news --wake-lock
 
 # 小型Linux端末向け（時計縮小・全オプション）
 python run.py --compact-clock --compact-news --mouse-hide
@@ -167,6 +168,7 @@ python run.py --compact-clock --compact-news --mouse-hide
 - `--compact-clock` 追加：時計フォントを縮小表示（Linux環境などで右端にはみ出る場合に有効）
 - `--compact-news` 追加：ニュースをタイトルのみ表示し、タップで詳細と記事リンクを展開するモード
 - `--mouse-hide` 追加：マウスカーソルを非表示にする（タッチパネル端末向け）
+- `--wake-lock` 追加：画面が暗くなるのをWakeLockAPIを利用し阻止するよう試行する（Chrome系ブラウザ向け）
 - マウスドラッグ・タッチスワイプによるスクロール対応（ニュースエリア・時間予報・週間予報）
 - 今日の時間別天気を週間予報エリアから独立したパネルに分離
 - ティッカー（上部ニュース帯）のクリックを無効化

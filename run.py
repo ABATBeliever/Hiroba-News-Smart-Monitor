@@ -178,7 +178,8 @@ class Handler(BaseHTTPRequestHandler):
             f'<script>window.MONITOR_CONFIG='
             f'{{"compactClock":{str(self.config.get("compact_clock",False)).lower()},'
             f'"compactNews":{str(self.config.get("compact_news",False)).lower()},'
-            f'"mouseHide":{str(self.config.get("mouse_hide",False)).lower()}}};</script>'
+            f'"mouseHide":{str(self.config.get("mouse_hide",False)).lower()},'
+            f'"wakeLock":{str(self.config.get("wake_lock",False)).lower()}}};</script>'
         )
         html = html.replace("</head>", inject + "</head>", 1)
         body = html.encode("utf-8")
@@ -201,6 +202,8 @@ def main():
                     help="Show only news titles; click to expand detail + link")
     ap.add_argument("--mouse-hide",    action="store_true",
                     help="Hide mouse cursor (for touch-only displays)")
+    ap.add_argument("--wake-lock",     action="store_true",
+                    help="Use WakeLock API to prevent screen from sleeping (Chrome/Edge/Safari)")
     args = ap.parse_args()
 
     feeds = [] if args.no_default_rss else list(DEFAULT_RSS_FEEDS)
@@ -211,7 +214,8 @@ def main():
     Handler.config = {"city":args.city,"lat":args.lat,"lon":args.lon,"feeds":feeds,
                       "compact_clock": args.compact_clock,
                       "compact_news":  args.compact_news,
-                      "mouse_hide":    args.mouse_hide}
+                      "mouse_hide":    args.mouse_hide,
+                      "wake_lock":     args.wake_lock}
 
     print(f"Hiroba News Smart Monitor v1.1\nhttp://localhost:{args.port}")
     try:
