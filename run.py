@@ -11,14 +11,12 @@ from datetime import datetime
 import threading, time, os, re
 
 DEFAULT_RSS_FEEDS = [
-    {"name": "NHK 主要",     "url": "https://www3.nhk.or.jp/rss/news/cat0.xml"},
-    {"name": "BBC 日本語",   "url": "https://feeds.bbci.co.uk/japanese/rss.xml"},
-    {"name": "CNN Japan",    "url": "https://feeds.cnn.co.jp/rss/cnn/cnn.rdf"},
-]
-
-DISASTER_FEEDS = [
-    {"name": "NHK 防災",     "url": "https://www3.nhk.or.jp/rss/news/cat6.xml"},
-    {"name": "気象庁 緊急情報","url": "https://www.data.jma.go.jp/developer/xml/feed/extra.xml"},
+    {"name": "NHK 主要",        "url": "https://www3.nhk.or.jp/rss/news/cat0.xml"},
+    {"name": "BBC 日本語",      "url": "https://feeds.bbci.co.uk/japanese/rss.xml"},
+    {"name": "CNN Japan",       "url": "https://feeds.cnn.co.jp/rss/cnn/cnn.rdf"},
+    {"name": "Google News JP",  "url": "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja"},
+    {"name": "GIGAZINE",        "url": "https://gigazine.net/news/rss_2.0/"},
+    {"name": "ITmedia",         "url": "https://rss.itmedia.co.jp/rss/2.0/itmediatopstory.xml"},
 ]
 
 _cache = {}
@@ -77,12 +75,12 @@ def fetch_weather(lat, lon, city):
         for i in range(len(hourly["time"])):
             t  = hourly["time"][i]
             h  = int(t[11:13])
-            if i < 24 and h % 3 == 0:
+            if i < 24 and h % 2 == 0:
                 hc = hourly["weather_code"][i]
                 hourly_data.append({"time":t[11:16],
                                     "temp":round(hourly["temperature_2m"][i],1),
                                     "icon":ICO.get(hc,"🌡")})
-            if len(hourly_data) >= 8: break
+            if len(hourly_data) >= 12: break
 
         result = {"city":city,"temp":round(cur["temperature_2m"],1),
                   "feels":round(cur["apparent_temperature"],1),"code":code,
@@ -129,6 +127,28 @@ def fetch_rss(url, name, limit=20):
     except Exception as e:
         return {"name":name,"url":url,"items":[],"error":str(e)}
 
+def fetch_disaster_filtered():
+    """
+    防災フィードを取得し、真の緊急情報（ALERT_KEYWORDS に合致するもの）だけを返す。
+    extra.xml はそもそも特別警報・緊急情報専用フィードなので全件採用。
+    regular.xml は警報キーワードで絞り込む。
+    """
+    results = []
+    for feed in DISASTER_FEEDS:
+        raw = fetch_rss(feed["url"], feed["name"], limit=30)
+        filtered_items = []
+        for it in raw.get("items", []):
+            # extra.xml は無条件採用、regular.xml はキーワードフィルタ
+            if "extra" in feed["url"] or is_alert(it["title"], it.get("desc","")):
+                filtered_items.append(it)
+        results.append({
+            "name": feed["name"],
+            "url":  feed["url"],
+            "items": filtered_items,
+            "error": raw.get("error"),
+        })
+    return results
+
 class Handler(BaseHTTPRequestHandler):
     config = {}
     def log_message(self, *a): pass
@@ -138,10 +158,121 @@ class Handler(BaseHTTPRequestHandler):
         if   p == "/":               self._html()
         elif p == "/api/weather":    self._json(fetch_weather(self.config["lat"],self.config["lon"],self.config["city"]))
         elif p == "/api/news":       self._json([fetch_rss(f["url"],f["name"]) for f in self.config["feeds"]])
-        elif p == "/api/disaster":   self._json([fetch_rss(f["url"],f["name"],10) for f in DISASTER_FEEDS])
+        elif p == "/api/disaster":   self._json(fetch_disaster_filtered())
         elif p == "/api/images":     self._json(self._imgs())
+        elif p == "/api/music":      self._json(self._music_tree())
+        elif p == "/api/commands":   self._json(self._load_commands())
         elif p.startswith("/images/"): self._img(p)
+        elif p.startswith("/music/"):  self._stream_music(p)
         else: self.send_error(404)
+
+    def do_POST(self):
+        p = self.path.split("?")[0]
+        if p == "/api/run":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+                cmd  = data.get("cmd", "").strip()
+                if not cmd:
+                    self._json({"ok": False, "error": "empty command"})
+                    return
+                # 別プロセスで起動（非同期・stdout/stderrは捨てる）
+                import subprocess
+                subprocess.Popen(
+                    cmd, shell=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    cwd=os.path.dirname(__file__),
+                )
+                self._json({"ok": True})
+            except Exception as e:
+                self._json({"ok": False, "error": str(e)})
+        else:
+            self.send_error(404)
+
+    def _load_commands(self):
+        """commands.json を読み込んで返す。なければ空リスト。"""
+        fp = os.path.join(os.path.dirname(__file__), "commands.json")
+        if not os.path.isfile(fp):
+            return []
+        try:
+            with open(fp, encoding="utf-8") as f:
+                data = json.load(f)
+            # cmd が配列なら改行結合して文字列に統一
+            for item in data:
+                if isinstance(item.get("cmd"), list):
+                    item["cmd"] = "\n".join(item["cmd"])
+            return data
+        except Exception as e:
+            return [{"name": f"⚠ commands.json 読み込みエラー: {e}", "cmd": ""}]
+
+    def _music_tree(self):
+        """musicフォルダを再帰的に走査してツリー構造を返す"""
+        music_dir = os.path.join(os.path.dirname(__file__), "music")
+        if not os.path.isdir(music_dir):
+            return []
+        AUDIO_EXT = {".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".opus"}
+
+        def scan(path, rel=""):
+            entries = []
+            try:
+                items = sorted(os.listdir(path))
+            except PermissionError:
+                return entries
+            for name in items:
+                full = os.path.join(path, name)
+                rel_path = (rel + "/" + name).lstrip("/")
+                if os.path.isdir(full):
+                    children = scan(full, rel_path)
+                    if children:
+                        entries.append({"type": "dir", "name": name, "path": rel_path, "children": children})
+                elif os.path.isfile(full):
+                    ext = os.path.splitext(name)[1].lower()
+                    if ext in AUDIO_EXT:
+                        entries.append({"type": "file", "name": name, "path": rel_path, "url": "/music/" + rel_path})
+            return entries
+
+        return scan(music_dir)
+
+    def _stream_music(self, url_path):
+        """音楽ファイルをRange対応でストリーミング配信"""
+        # URLデコード
+        rel = urllib.parse.unquote(url_path[len("/music/"):])
+        # パストラバーサル防止
+        music_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "music"))
+        fp = os.path.realpath(os.path.join(music_dir, rel))
+        if not fp.startswith(music_dir) or not os.path.isfile(fp):
+            self.send_error(404)
+            return
+        ext = os.path.splitext(fp)[1].lower()
+        mime = {".mp3":"audio/mpeg", ".flac":"audio/flac", ".wav":"audio/wav",
+                ".ogg":"audio/ogg", ".m4a":"audio/mp4", ".aac":"audio/aac",
+                ".opus":"audio/ogg"}.get(ext, "application/octet-stream")
+        fsize = os.path.getsize(fp)
+        # Range リクエスト対応
+        range_hdr = self.headers.get("Range", "")
+        start, end = 0, fsize - 1
+        if range_hdr.startswith("bytes="):
+            parts = range_hdr[6:].split("-")
+            try:
+                start = int(parts[0]) if parts[0] else 0
+                end   = int(parts[1]) if len(parts) > 1 and parts[1] else fsize - 1
+            except ValueError:
+                pass
+        length = end - start + 1
+        with open(fp, "rb") as f:
+            f.seek(start)
+            body = f.read(length)
+        code = 206 if range_hdr else 200
+        self.send_response(code)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(length))
+        self.send_header("Content-Range", f"bytes {start}-{end}/{fsize}")
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _imgs(self):
         d = os.path.join(os.path.dirname(__file__),"images")
@@ -217,7 +348,7 @@ def main():
                       "mouse_hide":    args.mouse_hide,
                       "wake_lock":     args.wake_lock}
 
-    print(f"Hiroba News Smart Monitor v1.1\nhttp://localhost:{args.port}")
+    print(f"Hiroba News Smart Monitor v2.0\nhttp://localhost:{args.port}")
     try:
         HTTPServer(("localhost", args.port), Handler).serve_forever()
     except KeyboardInterrupt:

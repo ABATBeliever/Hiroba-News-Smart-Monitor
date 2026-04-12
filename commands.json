@@ -1,0 +1,34 @@
+[
+  {
+    "name": "画面輝度を最大にする(Windows)",
+    "cmd": "cmd.exe /c powershell (Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,100)"
+  },
+  {
+    "name": "画面輝度を最小にする(Windows)",
+    "cmd": "cmd.exe /c powershell (Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,1)"
+  },
+  {
+    "name": "画面輝度を最大にする(Linux,brightnessctl)",
+    "cmd": "brightnessctl set 255"
+  },
+  {
+    "name": "画面輝度を最小にする(Linux,brightnessctl)",
+    "cmd": "brightnessctl set 1"
+  },
+  {
+    "name": "コマンドプロンプトを開く",
+    "cmd": "start cmd.exe"
+  },
+  {
+    "name": "再起動(Windows)",
+    "cmd": "shutdown -r -t 00"
+  },
+  {
+    "name": "再起動(Linux,shutdown)",
+    "cmd": "shutdown -r now"
+  },
+  {
+    "name": "再起動(Linux,systemd)",
+    "cmd": "systemctl reboot"
+  }
+]

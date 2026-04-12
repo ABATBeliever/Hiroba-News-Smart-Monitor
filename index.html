@@ -3,10 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Hiroba News Smart Monitor v1.1</title>
+<title>Hiroba News Smart Monitor v2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { user-select:none; -webkit-user-select:none; }
+a, input, textarea, [contenteditable] { user-select:text; -webkit-user-select:text; }
 
 :root {
   --bg:          #0b0f14;
@@ -26,11 +31,11 @@
   --safe:        #2ed573;
   --ticker-h:    44px;
   --left-w:      310px;
-  --header-h:    0px;
+  --dot-h:       28px;
 }
 
 html, body { width:100%; height:100dvh; overflow:hidden; background:var(--bg); }
-body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
+body { font-family:'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo UI', sans-serif; color:var(--text); }
 
 #bg-wrap { position:fixed; inset:0; z-index:0; }
 .bg-s {
@@ -44,16 +49,13 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
   background:linear-gradient(135deg,rgba(0,0,0,0.62) 0%,rgba(0,0,0,0.38) 60%,rgba(0,0,0,0.55) 100%);
 }
 
-#app {
+#pager-wrap {
   position:fixed; inset:0; z-index:10;
-  display:grid;
-  grid-template-rows: var(--ticker-h) 1fr;
-  grid-template-columns: var(--left-w) 1fr;
+  display:flex; flex-direction:column;
 }
 
 #ticker-bar {
-  grid-column: 1 / -1;
-  grid-row: 1;
+  flex-shrink:0; height:var(--ticker-h);
   display:flex; align-items:center;
   background:rgba(0,0,0,0.50);
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
@@ -61,140 +63,114 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
   overflow:hidden;
 }
 .ticker-label {
-  flex-shrink:0;
-  padding:0 14px;
-  font-family:'Noto Sans JP',sans-serif;
+  flex-shrink:0; padding:0 14px;
   font-size:11px; font-weight:500; letter-spacing:2px;
   color:rgba(255,255,255,0.55); background:rgba(255,255,255,0.08);
   height:100%; display:flex; align-items:center; border-right:1px solid var(--border);
 }
 .ticker-mask { flex:1; overflow:hidden; position:relative; }
-
 .ticker-mask::before, .ticker-mask::after {
   content:''; position:absolute; top:0; bottom:0; width:32px; z-index:2; pointer-events:none;
 }
-.ticker-mask::before { left:0;  background:linear-gradient(to right, rgba(0,0,0,0.5), transparent); }
-.ticker-mask::after  { right:0; background:linear-gradient(to left,  rgba(0,0,0,0.5), transparent); }
+.ticker-mask::before { left:0;  background:linear-gradient(to right,rgba(0,0,0,0.5),transparent); }
+.ticker-mask::after  { right:0; background:linear-gradient(to left, rgba(0,0,0,0.5),transparent); }
 #ticker-inner {
-  display:flex; align-items:center; gap:0; white-space:nowrap;
+  display:flex; align-items:center; white-space:nowrap;
   animation:ticker 80s linear infinite;
 }
 #ticker-inner:hover { animation-play-state:paused; }
 @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-.ti {
-  padding:0 18px; font-size:14px; color:rgba(255,255,255,0.85);
-  border-right:1px solid rgba(255,255,255,0.12);
-  pointer-events: none;
-  user-select: none;
-}
+.ti { padding:0 18px; font-size:14px; color:rgba(255,255,255,0.85); border-right:1px solid rgba(255,255,255,0.12); pointer-events:none; user-select:none; }
 .ti-sep { color:rgba(255,255,255,0.20); font-size:14px; padding:0 4px; }
 
+#slides-viewport {
+  flex:1; overflow:hidden; position:relative;
+}
+#slides-track {
+  display:flex; height:100%; width:600%;
+  transition:transform 0.38s cubic-bezier(0.4,0,0.2,1);
+  will-change:transform;
+}
+.slide {
+  flex:0 0 calc(100% / 6);
+  height:100%; overflow:hidden;
+  position:relative;
+}
+
+#page-dots {
+  position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  z-index:100; display:flex; gap:18px; align-items:center;
+  background:rgba(0,0,0,0.50);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  padding:14px 30px; border-radius:36px;
+  border:1px solid rgba(255,255,255,0.14);
+}
+.dot {
+  width:22px; height:22px; border-radius:50%;
+  background:rgba(255,255,255,0.28);
+  transition:all 0.25s; cursor:pointer;
+}
+.dot.active { background:#fff; transform:scale(1.3); }
+
+#page1 {
+  display:grid;
+  grid-template-columns: var(--left-w) 1fr;
+  height:100%;
+}
 
 #left-col {
-  grid-column:1; grid-row:2;
+  grid-column:1;
   display:flex; flex-direction:column;
   border-right:1px solid var(--border);
   overflow:hidden;
 }
 
 #clock-block {
-  flex-shrink:0;
-  padding:18px 20px 14px;
+  flex-shrink:0; padding:18px 20px 14px;
   border-bottom:1px solid var(--border);
   background:rgba(0,0,0,0.25);
   backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
 }
-
 #time-display {
-  font-family:'Noto Sans JP', sans-serif;
-  font-size:clamp(72px,9vw,96px);
-  font-weight:700; letter-spacing:2px; line-height:1;
-  color:#fff;
+  font-size:clamp(72px,9vw,96px); font-weight:700; letter-spacing:2px; line-height:1; color:#fff;
 }
 #time-sep { opacity:0.3; }
-
-#date-line {
-  margin-top:8px;
-  font-family:'Noto Sans JP', sans-serif;
-  font-size:16px; font-weight:500; color:rgba(255,255,255,0.88);
-  letter-spacing:0.5px;
-}
-#reiwa-line {
-  margin-top:4px; font-size:14px; font-weight:400; color:rgba(255,255,255,0.55); letter-spacing:1px;
-}
-#city-line {
-  margin-top:10px; font-size:13px; letter-spacing:1px; color:rgba(255,255,255,0.40);
-}
+#date-line { margin-top:8px; font-size:16px; font-weight:500; color:rgba(255,255,255,0.88); letter-spacing:0.5px; }
+#reiwa-line { margin-top:4px; font-size:14px; font-weight:400; color:rgba(255,255,255,0.55); letter-spacing:1px; }
+#city-line  { margin-top:10px; font-size:13px; letter-spacing:1px; color:rgba(255,255,255,0.40); }
 
 #weather-now {
-  flex-shrink:0;
-  padding:14px 20px;
-  border-bottom:1px solid var(--border);
+  flex-shrink:0; padding:14px 20px; border-bottom:1px solid var(--border);
   background:rgba(0,0,0,0.15);
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
 }
 .wn-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
 .wn-icon { font-size:52px; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
-.wn-temp {
-  font-family:'Noto Sans JP', sans-serif;
-  font-size:46px; font-weight:700; color:#fff; line-height:1;
-}
+.wn-temp { font-size:46px; font-weight:700; color:#fff; line-height:1; }
 .wn-unit { font-size:18px; opacity:0.5; }
 .wn-desc { font-size:16px; font-weight:500; color:rgba(255,255,255,0.85); margin-top:4px; }
 .wn-feels { font-size:14px; color:rgba(255,255,255,0.50); }
-
 .wn-stats { display:flex; gap:8px; }
-.wn-stat {
-  flex:1; text-align:center;
-  background:rgba(255,255,255,0.06);
-  border:1px solid var(--border); border-radius:10px; padding:7px 4px;
-}
+.wn-stat  { flex:1; text-align:center; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:7px 4px; }
 .wn-stat-l { font-size:11px; letter-spacing:0.5px; color:rgba(255,255,255,0.45); }
-.wn-stat-v { font-family:'Noto Sans JP',sans-serif; font-size:20px; font-weight:700; color:#fff; margin-top:2px; }
+.wn-stat-v { font-size:20px; font-weight:700; color:#fff; margin-top:2px; }
 .wn-stat-u { font-size:9px; opacity:0.5; }
 
-#hourly-block {
-  flex-shrink:0;
-  border-bottom:1px solid var(--border);
-  background:rgba(0,0,0,0.10);
-}
-
-#weekly-scroll {
-  flex:1; overflow-y:auto;
-  padding:10px 12px 16px;
-}
+#hourly-block { flex-shrink:0; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.10); }
+#weekly-scroll { flex:1; overflow-y:auto; padding:10px 12px 16px; }
 #weekly-scroll::-webkit-scrollbar { width:3px; }
 #weekly-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+.weekly-label { font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ghost); margin-bottom:8px; padding-left:4px; }
 
-.weekly-label {
-  font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
-  color:var(--ghost); margin-bottom:8px; padding-left:4px;
-}
-
-#hourly-strip {
-  display:flex; gap:6px; overflow-x:auto;
-  padding:0 12px 10px;
-  cursor:grab;
-}
+#hourly-strip { display:flex; gap:6px; overflow-x:auto; padding:0 12px 10px; cursor:grab; }
 #hourly-strip::-webkit-scrollbar { height:2px; }
 #hourly-strip::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); }
-.hc {
-  flex-shrink:0; text-align:center; min-width:56px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid var(--border); border-radius:10px; padding:6px 4px;
-}
+.hc { flex-shrink:0; text-align:center; min-width:56px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; padding:6px 4px; }
 .hc-t  { font-size:12px; color:var(--ghost); }
 .hc-i  { font-size:22px; margin:4px 0; }
-.hc-tp { font-family:'Noto Sans JP',sans-serif; font-size:14px; font-weight:700; color:#fff; }
+.hc-tp { font-size:14px; font-weight:700; color:#fff; }
 
-.fc-card {
-  display:flex; align-items:center; gap:8px;
-  padding:8px 10px;
-  border-radius:10px; margin-bottom:5px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid var(--border);
-  transition:background 0.2s;
-}
+.fc-card { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; margin-bottom:5px; background:rgba(255,255,255,0.04); border:1px solid var(--border); transition:background 0.2s; }
 .fc-card:hover { background:rgba(255,255,255,0.09); }
 .fc-card.today { border-color:rgba(94,196,255,0.4); background:rgba(94,196,255,0.08); }
 .fc-day  { width:52px; font-size:13px; color:var(--soft); }
@@ -202,132 +178,24 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 .fc-ico  { font-size:26px; width:30px; text-align:center; }
 .fc-d    { flex:1; font-size:13px; color:var(--soft); }
 .fc-tp   { text-align:right; }
-.fc-hi   { font-family:'Noto Sans JP',sans-serif; font-size:16px; font-weight:700; color:var(--accent-warm); }
-.fc-lo   { font-family:'Noto Sans JP',sans-serif; font-size:15px; font-weight:500; color:#87ceeb; }
+.fc-hi   { font-size:16px; font-weight:700; color:var(--accent-warm); }
+.fc-lo   { font-size:15px; font-weight:500; color:#87ceeb; }
 .fc-pp   { font-size:11px; color:var(--ghost); }
 
 #right-col {
-  grid-column:2; grid-row:2;
-  display:flex; flex-direction:column;
-  overflow:hidden;
+  grid-column:2; display:flex; flex-direction:column; overflow:hidden;
 }
-
-#disaster-bar {
-  flex-shrink:0; display:none;
-  padding:8px 16px;
-  background:var(--danger-bg);
-  border-bottom:1px solid var(--danger-bdr);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-}
-#disaster-bar.visible { display:flex; align-items:flex-start; gap:10px; }
-.dis-icon { font-size:20px; flex-shrink:0; margin-top:1px; }
-.dis-content { flex:1; }
-.dis-title { font-size:14px; font-weight:700; color:var(--danger); letter-spacing:1px; margin-bottom:5px; }
-.dis-items { display:flex; flex-wrap:wrap; gap:6px; }
-.dis-item {
-  font-size:13px; color:rgba(255,255,255,0.85);
-  background:rgba(255,71,87,0.10); border:1px solid rgba(255,71,87,0.30);
-  border-radius:6px; padding:3px 9px;
-}
-.dis-ok {
-  font-size:12px; color:var(--safe);
-  display:flex; align-items:center; gap:6px;
-}
-
-#news-scroll {
-  flex:1; overflow-y:auto;
-  padding:14px 14px 20px;
-}
-#news-scroll::-webkit-scrollbar { width:3px; }
-#news-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
-
-.feed-group { margin-bottom:18px; }
-.feed-name {
-  font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
-  color:var(--ghost); margin-bottom:9px; padding:0 2px;
-  display:flex; align-items:center; gap:8px;
-}
-.feed-name::after { content:''; flex:1; height:1px; background:var(--border); }
-
-.news-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
-  gap:8px;
-}
-
-.nc {
-  background:var(--panel);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  border:1px solid var(--border);
-  border-radius:12px; padding:15px 16px;
-  cursor:pointer; transition:background 0.2s, border-color 0.2s, transform 0.15s;
-  border-left:3px solid transparent;
-  display:flex; flex-direction:column;
-}
-.nc-footer {
-  margin-top:auto; padding-top:8px;
-  display:flex; flex-direction:column; gap:4px;
-}
-.nc-link { }
-.nc:hover {
-  background:var(--panel-hover);
-  border-color:var(--border-h);
-  border-left-color:var(--accent);
-  transform:translateY(-1px);
-}
-.nc a { text-decoration:none; color:inherit; display:block; }
-.nc-title {
-  font-size:15px; font-weight:700; line-height:1.6; color:#fff;
-}
-.nc:hover .nc-title { color:var(--accent); }
-.nc-desc {
-  font-size:13px; color:var(--soft); margin-top:6px; line-height:1.65;
-}
-.nc-meta { font-size:11px; color:var(--ghost); margin-top:7px; }
-.nc-desc:empty, .nc-meta:empty { display: none; }
-.nc-meta a { font-size: 12px; }
-
-.loader {
-  padding:24px; text-align:center; font-size:13px; color:var(--ghost);
-  animation:fp 1.4s ease-in-out infinite;
-}
-@keyframes fp { 0%,100%{opacity:0.3} 50%{opacity:1} }
-
 #forex-panel {
-  flex-shrink:0;
-  padding:10px 14px 10px;
+  flex-shrink:0; padding:10px 14px;
   border-bottom:1px solid var(--border);
   background:rgba(0,0,0,0.18);
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
 }
-.forex-header {
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:8px;
-}
-.forex-title {
-  font-size:11px; letter-spacing:2px; color:var(--ghost); text-transform:uppercase;
-}
 .forex-updated { font-size:10px; color:var(--ghost); opacity:0.7; }
-.forex-tabs { display:flex; gap:4px; }
-.forex-tab {
-  font-size:10px; padding:2px 8px; border-radius:4px; cursor:pointer;
-  border:1px solid var(--border); color:var(--ghost);
-  background:transparent; transition:all 0.15s;
-}
-.forex-tab.active {
-  background:rgba(94,196,255,0.15); border-color:var(--accent); color:var(--accent);
-}
 .forex-cards { display:flex; gap:7px; }
-.fx-card {
-  flex:1; background:rgba(255,255,255,0.05);
-  border:1px solid var(--border); border-radius:10px;
-  padding:8px 10px; min-width:0;
-}
+.fx-card { flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; padding:8px 10px; min-width:0; }
 .fx-pair { font-size:14px; letter-spacing:1px; color:rgba(255,255,255,0.75); margin-bottom:5px; font-weight:600; }
-.fx-rate {
-  font-family:'Noto Sans JP',sans-serif;
-  font-size:20px; font-weight:700; color:#fff; line-height:1.1;
-}
+.fx-rate { font-size:20px; font-weight:700; color:#fff; line-height:1.1; }
 .fx-rate span { font-size:11px; font-weight:400; opacity:0.5; margin-left:1px; }
 .fx-change { font-size:12px; font-weight:600; margin-top:4px; }
 .fx-change.up   { color:#2ed573; }
@@ -335,43 +203,527 @@ body { font-family:'Noto Sans JP', sans-serif; color:var(--text); }
 .fx-change.flat { color:var(--ghost); }
 .fx-label { font-size:9px; color:var(--ghost); margin-top:2px; opacity:0.7; }
 
-/* ── compact-clock mode ── */
-body.compact-clock #time-display { font-size: clamp(44px,6vw,62px) !important; }
-body.compact-clock #date-line    { font-size: 13px; }
-body.compact-clock #reiwa-line   { font-size: 12px; }
-body.compact-clock #clock-block  { padding: 12px 16px 10px; }
+#news-scroll { flex:1; overflow-y:auto; padding:14px 14px 28px; }
+#news-scroll::-webkit-scrollbar { width:3px; }
+#news-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+.news-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px; }
+.nc {
+  background:var(--panel); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--border); border-radius:12px; padding:15px 16px;
+  cursor:pointer; transition:background 0.2s,border-color 0.2s,transform 0.15s;
+  border-left:3px solid transparent; display:flex; flex-direction:column;
+}
+.nc:hover { background:var(--panel-hover); border-color:var(--border-h); border-left-color:var(--accent); transform:translateY(-1px); }
+.nc a { text-decoration:none; color:inherit; display:block; }
+.nc-title { font-size:15px; font-weight:700; line-height:1.6; color:#fff; }
+.nc:hover .nc-title { color:var(--accent); }
+.nc-desc { font-size:13px; color:var(--soft); margin-top:6px; line-height:1.65; }
+.nc-footer { margin-top:auto; padding-top:8px; display:flex; flex-direction:column; gap:4px; }
+.nc-meta { font-size:11px; color:var(--ghost); margin-top:7px; }
+.nc-desc:empty, .nc-meta:empty { display:none; }
 
-/* ── compact-news mode ── */
+#page2 {
+  display:flex; flex-direction:column;
+  height:100%; padding:0;
+  background:rgba(0,0,0,0.10);
+}
+
+#p2-top {
+  flex:0 0 auto;
+  display:flex; align-items:stretch;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,0.30);
+  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+}
+
+#p2-clock {
+  padding:28px 40px 24px;
+  display:flex; flex-direction:column; justify-content:center;
+  border-right:1px solid var(--border);
+}
+#p2-time {
+  font-size:clamp(100px,14vw,160px);
+  font-weight:700; letter-spacing:4px; line-height:1; color:#fff;
+}
+#p2-time-sep { opacity:0.25; }
+#p2-sec {
+  font-size:clamp(32px,4vw,52px);
+  font-weight:300; opacity:0.35; letter-spacing:3px;
+  margin-top:6px; text-align:right;
+}
+#p2-date { margin-top:14px; font-size:clamp(18px,2.2vw,26px); font-weight:500; color:rgba(255,255,255,0.85); letter-spacing:1px; }
+#p2-reiwa { margin-top:6px; font-size:clamp(14px,1.6vw,20px); color:rgba(255,255,255,0.45); letter-spacing:2px; }
+#p2-city  { margin-top:8px; font-size:15px; color:rgba(255,255,255,0.32); letter-spacing:1px; }
+
+#p2-weather-now {
+  flex:1; display:flex; flex-direction:column; justify-content:center;
+  padding:0; gap:0; overflow:hidden; position:relative;
+}
+
+#p2-day-nav {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 28px 10px;
+  flex-shrink:0; gap:12px;
+}
+.p2-nav-arr {
+  background:rgba(255,255,255,0.07); border:1px solid var(--border);
+  color:rgba(255,255,255,0.55);
+  font-size:26px; cursor:pointer; padding:6px 14px; border-radius:10px;
+  transition:color 0.2s, background 0.2s;
+  user-select:none; -webkit-user-select:none; flex-shrink:0;
+}
+.p2-nav-arr:hover { color:#fff; background:rgba(255,255,255,0.14); }
+.p2-nav-arr:disabled { opacity:0.15; cursor:default; }
+#p2-day-tabs {
+  display:flex; gap:8px; align-items:center;
+  flex:1; overflow-x:auto; justify-content:center;
+}
+#p2-day-tabs::-webkit-scrollbar { display:none; }
+.p2-day-tab {
+  font-size:15px; font-weight:500;
+  padding:8px 20px; border-radius:24px;
+  border:1px solid var(--border); color:var(--soft);
+  cursor:pointer; transition:all 0.2s; background:transparent;
+  white-space:nowrap; flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+}
+.p2-tab-wd { font-size:12px; opacity:0.55; font-weight:400; }
+.p2-day-tab.active {
+  background:rgba(94,196,255,0.18); border-color:var(--accent); color:#fff;
+  font-weight:700;
+}
+
+#p2-wx-viewport { flex:1; overflow:hidden; position:relative; }
+#p2-wx-track {
+  display:flex; height:100%;
+  transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
+  will-change:transform;
+}
+.p2-wx-card {
+  flex:0 0 100%; height:100%;
+  display:flex; flex-direction:column; justify-content:center;
+  padding:16px 36px 20px; gap:16px;
+}
+.p2-wx-main { display:flex; align-items:center; gap:20px; }
+.p2-wx-icon { font-size:clamp(64px,9vw,100px); filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5)); }
+.p2-wx-temp { font-size:clamp(70px,10vw,120px); font-weight:700; color:#fff; line-height:1; }
+.p2-wx-unit { font-size:clamp(22px,2.8vw,34px); opacity:0.45; vertical-align:super; }
+.p2-wx-right { display:flex; flex-direction:column; gap:6px; }
+.p2-wx-desc  { font-size:clamp(18px,2.2vw,28px); font-weight:600; color:rgba(255,255,255,0.9); }
+.p2-wx-sub   { font-size:clamp(13px,1.4vw,18px); color:rgba(255,255,255,0.42); }
+.p2-wx-hilo  { display:flex; gap:16px; align-items:baseline; }
+.p2-wx-hi    { font-size:clamp(28px,3.5vw,44px); font-weight:700; color:var(--accent-warm); }
+.p2-wx-lo    { font-size:clamp(22px,2.8vw,36px); font-weight:500; color:#87ceeb; }
+.p2-wx-pp    { font-size:clamp(14px,1.5vw,18px); color:var(--ghost); }
+.p2-wx-stats { display:flex; gap:12px; }
+.p2-wx-stat  { flex:1; background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:12px; padding:12px 8px; text-align:center; }
+.p2-wx-stat-l { font-size:12px; letter-spacing:1px; color:rgba(255,255,255,0.4); }
+.p2-wx-stat-v { font-size:clamp(22px,3vw,36px); font-weight:700; color:#fff; margin-top:3px; }
+.p2-wx-stat-u { font-size:10px; opacity:0.4; }
+
+#p2-hourly {
+  flex-shrink:0;
+  border-top:1px solid var(--border);
+  background:rgba(0,0,0,0.20);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+}
+.p2-hl { font-size:11px; letter-spacing:2.5px; color:var(--ghost); padding:12px 20px 6px; }
+#p2-hourly-strip { display:flex; gap:12px; overflow-x:auto; padding:0 20px 18px; cursor:grab; }
+#p2-hourly-strip::-webkit-scrollbar { height:2px; }
+#p2-hourly-strip::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); }
+.p2-hc {
+  flex-shrink:0; text-align:center; min-width:90px;
+  background:rgba(255,255,255,0.07); border:1px solid var(--border);
+  border-radius:16px; padding:14px 10px;
+}
+.p2-hc-t  { font-size:14px; color:var(--ghost); letter-spacing:0.5px; }
+.p2-hc-i  { font-size:38px; margin:8px 0; }
+.p2-hc-tp { font-size:22px; font-weight:700; color:#fff; }
+
+#page3 {
+  height:100%; display:flex; overflow:hidden;
+}
+
+#p3-handle {
+  flex:0 0 220px;
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start;
+  padding:28px 22px 28px;
+  border-right:1px solid var(--border);
+  background:rgba(0,0,0,0.28);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  gap:10px; text-align:left;
+  cursor:grab; user-select:none;
+  overflow:hidden;
+}
+#p3-handle:active { cursor:grabbing; }
+#p3-handle-title {
+  font-size:20px; font-weight:700; color:#fff; letter-spacing:1px;
+}
+#p3-handle-count {
+  font-size:13px; color:var(--soft);
+}
+#p3-handle-sources {
+  margin-top:6px; display:flex; flex-direction:column; gap:4px;
+}
+#p3-handle-sources span {
+  font-size:11px; color:var(--ghost); line-height:1.5;
+}
+
+#p3-canvas {
+  flex:1; height:100%;
+  overflow-y:scroll; overflow-x:hidden;
+  padding:20px 28px 56px;
+  display:flex; flex-direction:column; gap:22px;
+  -webkit-overflow-scrolling:touch;
+}
+#p3-canvas::-webkit-scrollbar { width:3px; }
+#p3-canvas::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+.nt {
+  flex-shrink:0; width:100%;
+  background:var(--panel);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:28px 36px;
+  border-left:5px solid var(--accent);
+}
+.nt-src {
+  font-size:11px; letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--accent); opacity:0.85; margin-bottom:12px;
+}
+.nt-title {
+  font-size:22px; font-weight:700; line-height:1.55; color:#fff;
+  margin-bottom:14px;
+}
+.nt-body {
+  font-size:16px; color:var(--soft); line-height:1.9;
+  margin-bottom:14px;
+}
+.nt-meta { font-size:12px; color:var(--ghost); }
+.nt-link { margin-top:10px; }
+.nt-link a {
+  font-size:13px; color:var(--accent);
+  text-decoration:none;
+}
+.nt-link a:hover { text-decoration:underline; }
+
+#page4 {
+  height:100%; display:flex; overflow:hidden;
+}
+
+#mu-left {
+  flex:0 0 360px; min-width:300px;
+  display:flex; flex-direction:column; align-items:center;
+  padding:28px 24px 24px;
+  border-right:1px solid var(--border);
+  background:rgba(0,0,0,0.25);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  overflow-y:auto;
+  gap:16px;
+}
+#mu-left::-webkit-scrollbar { display:none; }
+
+#mu-art {
+  width:180px; height:180px;
+  border-radius:18px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:72px;
+  flex-shrink:0;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+
+#mu-title {
+  font-size:16px; font-weight:700; color:#fff;
+  text-align:center; line-height:1.5;
+  max-width:100%; word-break:break-all;
+}
+#mu-artist { font-size:13px; color:var(--ghost); text-align:center; }
+
+#mu-seek-wrap {
+  width:100%; display:flex; align-items:center; gap:10px;
+}
+#mu-seek-wrap > span { font-size:12px; color:var(--ghost); flex-shrink:0; min-width:36px; }
+#mu-cur { text-align:right; }
+#mu-seek-track {
+  flex:1; height:8px; border-radius:4px;
+  background:rgba(255,255,255,0.15);
+  position:relative; cursor:pointer;
+  touch-action:none;
+}
+
+#mu-seek-track::before {
+  content:''; position:absolute;
+  inset:-10px 0;
+}
+#mu-seek-fill {
+  height:100%; border-radius:4px;
+  background:var(--accent); width:0%;
+  pointer-events:none;
+}
+#mu-seek-thumb {
+  position:absolute; top:50%; transform:translate(-50%,-50%);
+  width:22px; height:22px; border-radius:50%;
+  background:#fff; left:0%;
+  box-shadow:0 2px 8px rgba(0,0,0,0.5);
+  pointer-events:none;
+}
+
+#mu-controls {
+  display:flex; align-items:center; gap:16px;
+}
+.mu-btn {
+  background:rgba(255,255,255,0.08);
+  border:1px solid var(--border);
+  color:#fff; font-size:18px;
+  width:48px; height:48px; border-radius:50%;
+  cursor:pointer; transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center;
+}
+.mu-btn:hover { background:rgba(255,255,255,0.16); border-color:var(--accent); }
+.mu-play {
+  width:62px; height:62px; font-size:22px;
+  background:var(--accent); border-color:var(--accent); color:#000;
+}
+.mu-play:hover { background:#7dd6ff; }
+
+#mu-modes {
+  display:flex; gap:8px;
+}
+.mu-mode-btn {
+  font-size:12px; padding:5px 12px; border-radius:16px;
+  border:1px solid var(--border); color:var(--ghost);
+  background:transparent; cursor:pointer; transition:all 0.2s;
+}
+.mu-mode-btn.active {
+  background:rgba(94,196,255,0.15);
+  border-color:var(--accent); color:var(--accent);
+}
+
+#mu-scope-wrap {
+  display:flex; align-items:center; gap:7px;
+  font-size:12px; color:var(--ghost);
+  cursor:pointer; padding:2px 0;
+  transition:color 0.2s;
+  user-select:none; -webkit-user-select:none;
+}
+#mu-scope-wrap:hover { color:var(--soft); }
+#mu-scope-chk {
+  appearance:none; -webkit-appearance:none;
+  width:16px; height:16px; border-radius:4px; flex-shrink:0;
+  border:1.5px solid rgba(255,255,255,0.25);
+  background:transparent; cursor:pointer;
+  position:relative; transition:background 0.15s, border-color 0.15s;
+}
+#mu-scope-chk:checked {
+  background:var(--accent); border-color:var(--accent);
+}
+#mu-scope-chk:checked::after {
+  content:''; position:absolute;
+  left:4px; top:1px; width:5px; height:9px;
+  border:2px solid #000; border-top:none; border-left:none;
+  transform:rotate(45deg);
+}
+#mu-scope-label { line-height:1.3; }
+
+#mu-vol-wrap {
+  width:100%; display:flex; align-items:center; gap:8px;
+}
+#mu-vol-wrap > span { font-size:14px; flex-shrink:0; }
+.mu-vol-btn {
+  flex-shrink:0;
+  width:32px; height:32px; border-radius:8px;
+  background:rgba(255,255,255,0.08); border:1px solid var(--border);
+  color:#fff; font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background 0.15s;
+  line-height:1;
+}
+.mu-vol-btn:hover { background:rgba(255,255,255,0.18); }
+#mu-vol-track {
+  flex:1; height:8px; border-radius:4px;
+  background:rgba(255,255,255,0.15);
+  position:relative; cursor:pointer;
+  touch-action:none;
+}
+#mu-vol-track::before {
+  content:''; position:absolute;
+  inset:-10px 0;
+}
+#mu-vol-fill {
+  height:100%; border-radius:4px;
+  background:rgba(255,255,255,0.7); width:80%;
+  pointer-events:none;
+}
+#mu-vol-thumb {
+  position:absolute; top:50%; transform:translate(-50%,-50%);
+  width:20px; height:20px; border-radius:50%;
+  background:#fff; left:80%;
+  box-shadow:0 2px 6px rgba(0,0,0,0.4);
+  pointer-events:none;
+}
+
+#mu-right {
+  flex:1; display:flex; flex-direction:column; overflow:hidden;
+}
+#mu-tree-header {
+  flex-shrink:0; padding:16px 20px 12px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(0,0,0,0.15);
+}
+#mu-tree-title { font-size:12px; letter-spacing:2px; color:var(--ghost); text-transform:uppercase; }
+#mu-tree-count { font-size:11px; color:var(--ghost); opacity:0.6; }
+#mu-tree {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  padding:10px 12px 24px;
+  touch-action:pan-y; -webkit-overflow-scrolling:touch;
+}
+#mu-tree::-webkit-scrollbar { width:3px; }
+#mu-tree::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+
+.mu-dir {
+  margin-bottom:2px;
+}
+.mu-dir-label {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 10px; border-radius:8px;
+  cursor:pointer; color:var(--soft); font-size:14px;
+  transition:background 0.15s;
+  user-select:none;
+}
+.mu-dir-label:hover { background:rgba(255,255,255,0.06); }
+.mu-dir-arrow { font-size:10px; color:var(--ghost); transition:transform 0.2s; width:12px; flex-shrink:0; }
+.mu-dir.open > .mu-dir-label .mu-dir-arrow { transform:rotate(90deg); }
+.mu-dir-name { flex:1; font-weight:500; }
+.mu-dir-count { font-size:11px; color:var(--ghost); }
+.mu-dir-children {
+  display:none; padding-left:18px; border-left:1px solid rgba(255,255,255,0.06); margin-left:14px;
+}
+.mu-dir.open > .mu-dir-children { display:block; }
+
+.mu-file {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; border-radius:8px; margin-bottom:1px;
+  cursor:pointer; font-size:14px; color:var(--soft);
+  transition:background 0.15s, color 0.15s;
+  border-left:3px solid transparent;
+}
+.mu-file:hover { background:rgba(255,255,255,0.06); color:#fff; }
+.mu-file.active {
+  background:rgba(94,196,255,0.10);
+  border-left-color:var(--accent); color:#fff;
+}
+.mu-file-ico { font-size:14px; flex-shrink:0; }
+.mu-file-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+#page5 {
+  height:100%; display:flex; overflow:hidden;
+}
+
+#cmd-handle {
+  flex:0 0 220px;
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start;
+  padding:28px 22px 28px;
+  border-right:1px solid var(--border);
+  background:rgba(0,0,0,0.28);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  gap:10px; text-align:left;
+  cursor:grab; user-select:none;
+  overflow:hidden;
+}
+#cmd-handle:active { cursor:grabbing; }
+#cmd-handle-title {
+  font-size:20px; font-weight:700; color:#fff; letter-spacing:1px;
+}
+#cmd-handle-count {
+  font-size:13px; color:var(--soft);
+}
+#cmd-status {
+  font-size:13px; color:var(--ghost);
+  transition:color 0.3s; min-height:1.4em;
+}
+#cmd-status.ok   { color:var(--safe); }
+#cmd-status.fail { color:var(--danger); }
+
+#cmd-right {
+  flex:1; display:flex; flex-direction:column; overflow:hidden;
+}
+#cmd-list {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  padding:20px 24px 40px;
+  display:flex; flex-direction:column; gap:12px;
+  -webkit-overflow-scrolling:touch;
+}
+#cmd-list::-webkit-scrollbar { width:3px; }
+#cmd-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+.cmd-btn {
+  width:100%; padding:18px 24px;
+  background:var(--panel);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--border); border-radius:14px;
+  border-left:4px solid var(--accent);
+  color:#fff; font-size:17px; font-weight:600;
+  text-align:left; cursor:pointer;
+  transition:background 0.2s, border-color 0.2s, opacity 0.2s;
+  font-family:'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo UI', sans-serif;
+  user-select:none;
+}
+.cmd-btn:hover:not(:disabled) { background:var(--panel-hover); border-color:var(--accent); }
+.cmd-btn:disabled { opacity:0.35; cursor:not-allowed; }
+.cmd-btn-name { display:block; }
+.cmd-btn-cd { font-size:11px; color:var(--ghost); font-weight:400; letter-spacing:0.5px; }
+
+#page6 {
+  height:100%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:16px;
+  background:rgba(0,0,0,0.40);
+}
+#reload-msg { font-size:72px; }
+#reload-txt { font-size:20px; color:var(--ghost); letter-spacing:2px; }
+
+.loader {
+  padding:24px; text-align:center; font-size:13px; color:var(--ghost);
+  animation:fp 1.4s ease-in-out infinite;
+}
+@keyframes fp { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+body.compact-clock #time-display { font-size:clamp(44px,6vw,62px) !important; }
+body.compact-clock #date-line    { font-size:13px; }
+body.compact-clock #reiwa-line   { font-size:12px; }
+body.compact-clock #clock-block  { padding:12px 16px 10px; }
+body.compact-clock #p2-time      { font-size:clamp(72px,10vw,120px) !important; }
+
 body.compact-news .nc-desc,
-body.compact-news .nc-footer { display: none; }
+body.compact-news .nc-footer { display:none; }
 body.compact-news .nc.expanded .nc-desc,
-body.compact-news .nc.expanded .nc-footer { display: flex; }
-body.compact-news .nc { cursor: pointer; }
-body.compact-news .nc-title::after {
-  content: ' ›';
-  font-size: 12px;
-  color: var(--ghost);
-  transition: color 0.2s;
+body.compact-news .nc.expanded .nc-footer { display:flex; }
+body.compact-news .nc { cursor:pointer; }
+body.compact-news .nc-title::after { content:' ›'; font-size:12px; color:var(--ghost); transition:color 0.2s; }
+
+body.mouse-hide, body.mouse-hide * { cursor:none !important; }
+
+.drag-scroll { user-select:none; }
+.drag-scroll.dragging { cursor:grabbing !important; }
+
+.scroll-zone {
+  touch-action:pan-y;
+  -webkit-overflow-scrolling:touch;
+  user-select:none;
 }
-body.compact-news .nc .nc-link { display: none; }
-body.compact-news .nc.expanded .nc-link { display: block; }
 
-/* ── mouse-hide mode ── */
-body.mouse-hide, body.mouse-hide * { cursor: none !important; }
-
-/* ── drag-scroll ── */
-.drag-scroll { user-select: none; }
-.drag-scroll.dragging { cursor: grabbing !important; }
-
-@media (max-width: 700px) {
-  :root { --left-w: 100vw; }
-  #app {
-    grid-template-rows: var(--ticker-h) auto 1fr;
-    grid-template-columns: 1fr;
-  }
-  #left-col  { grid-column:1; grid-row:2; max-height:55vh; }
-  #right-col { grid-column:1; grid-row:3; }
+@media (max-width:700px) {
+  :root { --left-w:100vw; }
+  #page1 { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+  #left-col  { max-height:55vh; }
+  #right-col { grid-column:1; }
+  #p3-canvas { padding:14px 4vw 48px; }
+  #p2-clock { padding:18px 20px; }
+  #p2-day-nav { padding:10px 14px 8px; }
 }
+
 </style>
 </head>
 <body>
@@ -382,65 +734,218 @@ body.mouse-hide, body.mouse-hide * { cursor: none !important; }
 </div>
 <div id="bg-ov"></div>
 
-<div id="app">
+<div id="pager-wrap">
 
   <div id="ticker-bar">
     <div class="ticker-label">LIVE NEWS</div>
     <div class="ticker-mask">
-      <div id="ticker-inner"><span class="loader" style="padding:0 20px">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</span></div>
+      <div id="ticker-inner"><span class="loader" style="padding:0 20px">読み込み中...</span></div>
     </div>
   </div>
 
-  <div id="left-col">
+  <div id="slides-viewport">
+    <div id="slides-track">
 
-    <div id="clock-block">
-      <div id="time-display">
-        <div style="display:flex;align-items:baseline;gap:4px"><span id="th">--</span><span id="time-sep">:</span><span id="tm">--</span></div><div id="ts" style="font-size:0.28em;opacity:0.40;letter-spacing:2px;margin-top:2px;text-align:right">--</div>
+      <div class="slide" id="slide-0">
+        <div id="page1">
+
+          <div id="left-col">
+            <div id="clock-block">
+              <div id="time-display">
+                <div style="display:flex;align-items:baseline;gap:4px">
+                  <span id="th">--</span><span id="time-sep">:</span><span id="tm">--</span>
+                </div>
+                <div id="ts" style="font-size:0.28em;opacity:0.40;letter-spacing:2px;margin-top:2px;text-align:right">--</div>
+              </div>
+              <div id="date-line">----年 -月 -日（-）</div>
+              <div id="reiwa-line">令和--年 / 干支 --</div>
+              <div id="city-line">📍 ...</div>
+            </div>
+
+            <div id="weather-now">
+              <div class="loader">天気を取得中...</div>
+            </div>
+
+            <div id="hourly-block">
+              <div class="weekly-label" style="padding:8px 12px 4px;margin:0;">今日の時間別</div>
+              <div id="hourly-strip" class="drag-scroll"></div>
+            </div>
+
+            <div id="weekly-scroll" class="drag-scroll">
+              <div class="weekly-label">週間予報</div>
+              <div id="forecast-list"></div>
+            </div>
+          </div>
+
+          <div id="right-col">
+            <div id="forex-panel">
+              <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+                <span class="forex-updated" id="forex-updated"></span>
+              </div>
+              <div class="forex-cards" id="forex-cards">
+                <div class="loader" style="padding:8px;width:100%">為替取得中...</div>
+              </div>
+            </div>
+            <div id="news-scroll" class="drag-scroll">
+              <div class="loader">ニュース取得中...</div>
+            </div>
+          </div>
+
+        </div>
       </div>
-      <div id="date-line">----年 -月 -日（-）</div>
-      <div id="reiwa-line">令和--年 / 干支 --</div>
-      <div id="city-line">📍 …</div>
-    </div>
 
-    <div id="weather-now">
-      <div class="loader">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
-    </div>
+      <div class="slide" id="slide-1">
+        <div id="page2">
 
-    <div id="hourly-block">
-      <div class="weekly-label" style="padding:8px 12px 4px;margin:0;">今日の時間別</div>
-      <div id="hourly-strip" class="drag-scroll"></div>
-    </div>
+          <div id="p2-top">
+            <div id="p2-clock">
+              <div id="p2-time">
+                <span id="p2-th">--</span><span id="p2-time-sep">:</span><span id="p2-tm">--</span>
+              </div>
+              <div id="p2-sec">--</div>
+              <div id="p2-date">----年 -月 -日（-）</div>
+              <div id="p2-reiwa">令和--年 / 干支 --</div>
+              <div id="p2-city">📍 ...</div>
+            </div>
 
-    <div id="weekly-scroll" class="drag-scroll">
-      <div class="weekly-label">週間予報</div>
-      <div id="forecast-list"></div>
-    </div>
+          <div id="p2-weather-now">
+              <div id="p2-day-nav">
+                <button class="p2-nav-arr" id="p2-prev-day">&#8249;</button>
+                <div id="p2-day-tabs"></div>
+                <button class="p2-nav-arr" id="p2-next-day">&#8250;</button>
+              </div>
+              <div id="p2-wx-viewport">
+                <div id="p2-wx-track"></div>
+              </div>
+            </div>
+          </div>
 
+          <div id="p2-hourly">
+            <div class="p2-hl">今日の時間別</div>
+            <div id="p2-hourly-strip" class="drag-scroll"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="slide" id="slide-2">
+        <div id="page3">
+
+          <div id="p3-handle">
+            <div id="p3-handle-title">ニュース</div>
+            <div id="p3-handle-count">読み込み中...</div>
+            <div id="p3-handle-sources"></div>
+          </div>
+
+          <div id="p3-canvas">
+            <div class="loader">ニュース取得中...</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="slide" id="slide-3">
+        <div id="page4">
+
+          <div id="mu-left">
+            <div id="mu-art">🎵</div>
+            <div id="mu-title">曲を選択してください</div>
+            <div id="mu-artist"></div>
+
+            <div id="mu-seek-wrap">
+              <span id="mu-cur">0:00</span>
+              <div id="mu-seek-track">
+                <div id="mu-seek-fill"></div>
+                <div id="mu-seek-thumb"></div>
+              </div>
+              <span id="mu-dur">0:00</span>
+            </div>
+
+            <div id="mu-controls">
+              <button class="mu-btn" id="mu-prev" title="前の曲">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+              </button>
+              <button class="mu-btn mu-play" id="mu-play">
+                <svg class="mu-play-icon" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>
+                <svg class="mu-pause-icon" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              </button>
+              <button class="mu-btn" id="mu-next" title="次の曲">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6v12h2V6h-2z"/></svg>
+              </button>
+            </div>
+
+            <div id="mu-modes">
+              <button class="mu-mode-btn active" id="mu-mode-seq"  title="順番再生">順番</button>
+              <button class="mu-mode-btn"        id="mu-mode-rand" title="ランダム">ランダム</button>
+              <button class="mu-mode-btn"        id="mu-mode-loop" title="1曲ループ">ループ</button>
+            </div>
+
+            <label id="mu-scope-wrap" title="現在の曲が含まれるフォルダ以下に再生範囲を限定する">
+              <input type="checkbox" id="mu-scope-chk">
+              <span id="mu-scope-label">フォルダを限定しない</span>
+            </label>
+
+            <div id="mu-vol-wrap">
+              <button class="mu-vol-btn" id="mu-vol-down" title="音量を下げる">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5zm7-.17v6.34L9.83 13H7v-2h2.83L12 8.83z"/></svg>
+              </button>
+              <div id="mu-vol-track">
+                <div id="mu-vol-fill"></div>
+                <div id="mu-vol-thumb"></div>
+              </div>
+              <button class="mu-vol-btn" id="mu-vol-up" title="音量を上げる">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="mu-right">
+            <div id="mu-tree-header">
+              <span id="mu-tree-title">📁 ライブラリ</span>
+              <span id="mu-tree-count"></span>
+            </div>
+            <div id="mu-tree" class="scroll-zone">
+              <div class="loader">musicフォルダを読み込み中...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="slide" id="slide-4">
+        <div id="page5">
+
+          <div id="cmd-handle">
+            <div id="cmd-handle-title">コマンド</div>
+            <div id="cmd-handle-count">読み込み中...</div>
+            <div id="cmd-status"></div>
+          </div>
+
+          <div id="cmd-right">
+            <div id="cmd-list">
+              <div class="loader">コマンド読み込み中...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="slide" id="slide-5">
+        <div id="page6">
+          <div id="reload-msg">🔄</div>
+          <div id="reload-txt">リロード中...</div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
-  <div id="right-col">
-
-    <div id="disaster-bar">
-      <div class="dis-icon">🚨</div>
-      <div class="dis-content">
-        <div class="dis-title">防災・緊急情報</div>
-        <div class="dis-items" id="disaster-items"></div>
-      </div>
-    </div>
-
-    <div id="forex-panel">
-      <div class="forex-cards">
-        <span class="forex-updated" id="forex-updated"></span>
-      </div>
-      <div class="forex-cards" id="forex-cards">
-        <div class="loader" style="padding:8px;width:100%">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
-      </div>
-    </div>
-
-    <div id="news-scroll" class="drag-scroll">
-      <div class="loader">表示されない場合、インターネット接続とJavascript、Pythonを確認してください</div>
-    </div>
-
+  <div id="page-dots">
+    <div class="dot active" data-page="0"></div>
+    <div class="dot" data-page="1"></div>
+    <div class="dot" data-page="2"></div>
+    <div class="dot" data-page="3"></div>
+    <div class="dot" data-page="4"></div>
   </div>
 
 </div>
@@ -448,19 +953,139 @@ body.mouse-hide, body.mouse-hide * { cursor: none !important; }
 <script>
 'use strict';
 
-const DAY  = ['日','月','火','水','木','金','土'];
-const ETOS = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-const JIKKAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const track  = document.getElementById('slides-track');
+const dots   = document.querySelectorAll('.dot');
+let curPage  = 0;
+const PAGES  = 6;
+
+function goPage(n, animate = true) {
+  n = Math.max(0, Math.min(PAGES - 1, n));
+  const px = -n * document.getElementById('slides-viewport').offsetWidth;
+  if (!animate) {
+    track.style.transition = 'none';
+    track.style.transform  = `translateX(${px}px)`;
+    requestAnimationFrame(() => { track.style.transition = ''; });
+  } else {
+    track.style.transform = `translateX(${px}px)`;
+  }
+  curPage = n;
+  dots.forEach((d, i) => d.classList.toggle('active', i === n));
+
+  if (n === 5) {
+    setTimeout(() => location.reload(), 500);
+  }
+}
+
+dots.forEach(d => d.addEventListener('click', () => goPage(+d.dataset.page)));
+
+(function() {
+  const vp = document.getElementById('slides-viewport');
+
+  function pageW() { return vp.offsetWidth; }
+  function setX(px) { track.style.transform = `translateX(${px}px)`; }
+  function baseX() { return -curPage * pageW(); }
+
+  let sx = 0, sy = 0;
+  let startX = 0;
+  let isHoriz = null;
+  let active = false;
+
+  function onDown(e) {
+    const pt = e.touches ? e.touches[0] : e;
+    sx = pt.clientX; sy = pt.clientY;
+    isHoriz = null;
+    startX = baseX();
+
+    const SCROLL_IDS = [
+      'weekly-scroll',    // PAGE1 週間予報（縦）
+      'news-scroll',      // PAGE1 ニュース（縦）
+      'hourly-strip',     // PAGE1 時間別（横）
+      'p2-hourly-strip',  // PAGE2 時間別（横）
+      'p2-wx-viewport',   // PAGE2 天気スワイプ（横・独自処理）
+      'mu-seek-track',    // PAGE4 シークバー（独自処理）
+      'mu-vol-track',     // PAGE4 音量バー（独自処理）
+      'p3-canvas',        // PAGE3 ニュースタイル（縦）
+      'mu-tree',          // PAGE4 音楽ツリー（縦）
+      'cmd-list',         // PAGE5 コマンドリスト（縦）
+      // ※ p3-handle・cmd-handle は除外しない（ページスワイプに使う）
+    ];
+    const inScrollEl = SCROLL_IDS.some(id => {
+      const el = document.getElementById(id);
+      return el && el.contains(e.target);
+    });
+
+    if (inScrollEl) {
+      active = false;
+      return;
+    }
+    active = true;
+    track.style.transition = 'none';
+  }
+
+  function onMove(e) {
+    if (!active) return;
+    const pt = e.touches ? e.touches[0] : e;
+    const dx = pt.clientX - sx;
+    const dy = pt.clientY - sy;
+
+    if (isHoriz === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      isHoriz = Math.abs(dx) > Math.abs(dy);
+      if (isHoriz) track.style.transition = 'none';
+    }
+    if (isHoriz === null) return;
+    if (!isHoriz) return;
+    if (e.cancelable) e.preventDefault();
+
+    let nx = startX + dx;
+    const minX = -(PAGES - 1) * pageW();
+    if (nx > 0)    nx = dx * 0.25;
+    if (nx < minX) nx = minX + (nx - minX) * 0.25;
+    setX(nx);
+  }
+
+  function onUp(e) {
+    if (!active) return;
+    active = false;
+    track.style.transition = '';
+    if (!isHoriz) return;
+
+    const pt = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = pt.clientX - sx;
+    const w  = pageW();
+    const rawX   = startX + dx;
+    const nearest = Math.round(-rawX / w);
+    const flick   = Math.abs(dx) > 50;
+    let target = nearest;
+    if (flick && dx < 0) target = Math.max(nearest, curPage + 1);
+    if (flick && dx > 0) target = Math.min(nearest, curPage - 1);
+    goPage(target);
+  }
+
+  let mouseDown = false;
+  vp.addEventListener('mousedown', e => { onDown(e); mouseDown = true; });
+  window.addEventListener('mousemove', e => { if (mouseDown) onMove(e); });
+  window.addEventListener('mouseup',   e => { if (!mouseDown) return; mouseDown = false; onUp(e); });
+
+  vp.addEventListener('touchstart', onDown, { passive: true });
+  vp.addEventListener('touchmove',  onMove, { passive: false });
+  vp.addEventListener('touchend',   onUp);
+  vp.addEventListener('touchcancel', () => { active = false; track.style.transition = ''; goPage(curPage); });
+})();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') goPage(curPage + 1);
+  if (e.key === 'ArrowLeft')  goPage(curPage - 1);
+});
+
+window.addEventListener('resize', () => goPage(curPage, false));
 
 const bgA = document.getElementById('bg-a');
 const bgB = document.getElementById('bg-b');
 let bgSide = 'a', bgList = [];
-
 (async () => {
   try { const r = await fetch('/api/images'); if(r.ok) bgList = await r.json(); } catch{}
   if (bgList.length) showBg();
 })();
-
 function showBg() {
   if (!bgList.length) return;
   const url  = bgList[Math.floor(Math.random()*bgList.length)];
@@ -473,33 +1098,58 @@ function showBg() {
 }
 setInterval(showBg, 30000);
 
+const DAY    = ['日','月','火','水','木','金','土'];
+const ETOS   = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const JIKKAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
 function reiwaYear(y) { return y - 2018; }
-
-function kanshi(y) {
-  const jk = JIKKAN[(y - 4) % 10];
-  const et = ETOS[(y - 4) % 12];
-  return jk + et;
-}
+function kanshi(y) { return JIKKAN[(y-4)%10] + ETOS[(y-4)%12]; }
 
 function tick() {
-  const n = new Date();
-  const y = n.getFullYear(), mo = n.getMonth()+1, d = n.getDate();
+  const n  = new Date();
+  const y  = n.getFullYear(), mo = n.getMonth()+1, d = n.getDate();
   const hh = String(n.getHours()).padStart(2,'0');
   const mm = String(n.getMinutes()).padStart(2,'0');
   const ss = String(n.getSeconds()).padStart(2,'0');
+  const sep_op = n.getSeconds()%2===0 ? '1' : '0.15';
+  const dateStr  = `${y}年 ${mo}月 ${d}日（${DAY[n.getDay()]}）`;
+  const reiwaStr = `令和${reiwaYear(y)}年 / 干支 ${kanshi(y)}`;
 
+  // page1
   document.getElementById('th').textContent = hh;
   document.getElementById('tm').textContent = mm;
   document.getElementById('ts').textContent = ss;
+  document.getElementById('time-sep').style.opacity = sep_op;
+  document.getElementById('date-line').textContent  = dateStr;
+  document.getElementById('reiwa-line').textContent = reiwaStr;
 
-  document.getElementById('time-sep').style.opacity = n.getSeconds()%2===0 ? '1' : '0.15';
-
-  document.getElementById('date-line').textContent =
-    `${y}年 ${mo}月 ${d}日（${DAY[n.getDay()]}）`;
-  document.getElementById('reiwa-line').textContent =
-    `令和${reiwaYear(y)}年 / 干支 ${kanshi(y)}`;
+  // page2
+  document.getElementById('p2-th').textContent   = hh;
+  document.getElementById('p2-tm').textContent   = mm;
+  document.getElementById('p2-sec').textContent  = ss;
+  document.getElementById('p2-time-sep').style.opacity = sep_op;
+  document.getElementById('p2-date').textContent  = dateStr;
+  document.getElementById('p2-reiwa').textContent = reiwaStr;
 }
 setInterval(tick, 1000); tick();
+
+let wxForecast = [];
+let wxDayIdx   = 0;
+
+function renderP2Day(idx) {
+  const f   = wxForecast[idx];
+  if (!f) return;
+
+  const numDays = wxForecast.length || 1;
+  const pct = -idx * (100 / numDays);
+  document.getElementById('p2-wx-track').style.transform = `translateX(${pct}%)`;
+
+  document.querySelectorAll('.p2-day-tab').forEach((t,i) => t.classList.toggle('active', i === idx));
+
+  document.getElementById('p2-prev-day').disabled = idx === 0;
+  document.getElementById('p2-next-day').disabled = idx === wxForecast.length - 1;
+
+  wxDayIdx = idx;
+}
 
 async function loadWeather() {
   try {
@@ -507,6 +1157,7 @@ async function loadWeather() {
     if (w.error) throw new Error(w.error);
 
     document.getElementById('city-line').textContent = '📍 ' + w.city;
+    document.getElementById('p2-city').textContent   = '📍 ' + w.city;
 
     document.getElementById('weather-now').innerHTML = `
       <div class="wn-row">
@@ -518,45 +1169,95 @@ async function loadWeather() {
         </div>
       </div>
       <div class="wn-stats">
-        <div class="wn-stat">
-          <div class="wn-stat-l">湿度</div>
-          <div class="wn-stat-v">${w.humidity}<span class="wn-stat-u">%</span></div>
-        </div>
-        <div class="wn-stat">
-          <div class="wn-stat-l">風速</div>
-          <div class="wn-stat-v">${w.wind}<span class="wn-stat-u">km/h</span></div>
-        </div>
-        <div class="wn-stat">
-          <div class="wn-stat-l">降水</div>
-          <div class="wn-stat-v">${w.precip}<span class="wn-stat-u">mm</span></div>
-        </div>
+        <div class="wn-stat"><div class="wn-stat-l">湿度</div><div class="wn-stat-v">${w.humidity}<span class="wn-stat-u">%</span></div></div>
+        <div class="wn-stat"><div class="wn-stat-l">風速</div><div class="wn-stat-v">${w.wind}<span class="wn-stat-u">km/h</span></div></div>
+        <div class="wn-stat"><div class="wn-stat-l">降水</div><div class="wn-stat-v">${w.precip}<span class="wn-stat-u">mm</span></div></div>
       </div>`;
 
-    document.getElementById('hourly-strip').innerHTML =
-      (w.hourly||[]).map(x => `
-        <div class="hc">
-          <div class="hc-t">${x.time}</div>
-          <div class="hc-i">${x.icon}</div>
-          <div class="hc-tp">${x.temp}°</div>
-        </div>`).join('');
+    const hHtml = (w.hourly||[]).map(x => `
+      <div class="hc"><div class="hc-t">${x.time}</div><div class="hc-i">${x.icon}</div><div class="hc-tp">${x.temp}°</div></div>`).join('');
+    const p2hHtml = (w.hourly||[]).map(x => `
+      <div class="p2-hc"><div class="p2-hc-t">${x.time}</div><div class="p2-hc-i">${x.icon}</div><div class="p2-hc-tp">${x.temp}°</div></div>`).join('');
+    document.getElementById('hourly-strip').innerHTML    = hHtml;
+    document.getElementById('p2-hourly-strip').innerHTML = p2hHtml;
 
     const lbls = ['今日','明日','明後日'];
-    document.getElementById('forecast-list').innerHTML =
-      (w.forecast||[]).map((f,i) => {
-        const dt  = new Date(f.date);
-        const day = lbls[i] || `${dt.getMonth()+1}/${dt.getDate()}`;
-        const wd  = DAY[dt.getDay()];
-        return `<div class="fc-card${i===0?' today':''}">
-          <div class="fc-day"><b>${day}</b>${i>0?wd+'曜':''}</div>
-          <div class="fc-ico">${f.icon}</div>
-          <div class="fc-d">${h(f.desc)}</div>
-          <div class="fc-tp">
-            <div class="fc-hi">↑${f.max}°</div>
-            <div class="fc-lo">↓${f.min}°</div>
-            <div class="fc-pp">💧${f.precip}mm</div>
+    const fcHtml = (w.forecast||[]).map((f,i) => {
+      const dt  = new Date(f.date);
+      const day = lbls[i] || `${dt.getMonth()+1}/${dt.getDate()}`;
+      const wd  = ['日','月','火','水','木','金','土'][dt.getDay()];
+      return `<div class="fc-card${i===0?' today':''}">
+        <div class="fc-day"><b>${day}</b>${i>0?wd+'曜':''}</div>
+        <div class="fc-ico">${f.icon}</div>
+        <div class="fc-d">${h(f.desc)}</div>
+        <div class="fc-tp">
+          <div class="fc-hi">↑${f.max}°</div>
+          <div class="fc-lo">↓${f.min}°</div>
+          <div class="fc-pp">💧${f.precip}mm</div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('forecast-list').innerHTML = fcHtml;
+
+    wxForecast = w.forecast || [];
+    const lbls7 = ['今日','明日','明後日'];
+    const DAY7  = ['日','月','火','水','木','金','土'];
+
+    const tabs = wxForecast.map((f,i) => {
+      const dt  = new Date(f.date);
+      const wd  = DAY7[dt.getDay()];
+      const lbl = lbls7[i] || `${dt.getMonth()+1}/${dt.getDate()}`;
+      const wdLine = i < 3 ? wd + '曜日' : wd + '曜日';
+      return `<div class="p2-day-tab${i===0?' active':''}" data-di="${i}">
+        ${lbl}<span class="p2-tab-wd">${wd}曜</span>
+      </div>`;
+    }).join('');
+    document.getElementById('p2-day-tabs').innerHTML = tabs;
+    document.querySelectorAll('.p2-day-tab').forEach(t =>
+      t.addEventListener('click', () => { wxDayIdx = +t.dataset.di; renderP2Day(wxDayIdx); })
+    );
+
+    const cards = wxForecast.map((f,i) => {
+      const dt   = new Date(f.date);
+      const wd   = DAY7[dt.getDay()];
+      const lbl  = lbls7[i] || `${dt.getMonth()+1}/${dt.getDate()}`;
+      const isToday = i === 0;
+      const statsHtml = isToday
+        ? `<div class="p2-wx-stats">
+            <div class="p2-wx-stat"><div class="p2-wx-stat-l">湿度</div><div class="p2-wx-stat-v">${w.humidity}<span class="p2-wx-stat-u">%</span></div></div>
+            <div class="p2-wx-stat"><div class="p2-wx-stat-l">風速</div><div class="p2-wx-stat-v">${w.wind}<span class="p2-wx-stat-u">km/h</span></div></div>
+            <div class="p2-wx-stat"><div class="p2-wx-stat-l">降水</div><div class="p2-wx-stat-v">${f.precip}<span class="p2-wx-stat-u">mm</span></div></div>
+           </div>`
+        : '';
+      return `<div class="p2-wx-card">
+        <div class="p2-wx-main">
+          <div class="p2-wx-icon">${f.icon}</div>
+          <div>
+            <div class="p2-wx-hilo">
+              <span class="p2-wx-hi">↑${f.max}°</span>
+              <span class="p2-wx-lo">↓${f.min}°</span>
+            </div>
+            <div class="p2-wx-right">
+              <div class="p2-wx-desc">${h(f.desc)}</div>
+              ${isToday ? `<div class="p2-wx-sub">現在 ${w.temp}°C / 体感 ${w.feels}°C</div>` : `<div class="p2-wx-sub">💧${f.precip}mm</div>`}
+            </div>
           </div>
-        </div>`;
-      }).join('');
+        </div>
+        ${statsHtml}
+      </div>`;
+    }).join('');
+    document.getElementById('p2-wx-track').innerHTML = cards;
+
+    // ページが非表示でも offsetWidth=0 にならないよう % ベースで幅指定
+    const numDays = wxForecast.length;
+    document.getElementById('p2-wx-track').style.width = `${numDays * 100}%`;
+    document.querySelectorAll('.p2-wx-card').forEach(c => {
+      c.style.flex = `0 0 ${100 / numDays}%`;
+    });
+
+    renderP2Day(Math.min(wxDayIdx, wxForecast.length - 1));
+
+    setupWxSwipe();
 
   } catch(e) {
     document.getElementById('weather-now').innerHTML =
@@ -564,10 +1265,74 @@ async function loadWeather() {
   }
 }
 
+let wxSwipeSetup = false;
+function setupWxSwipe() {
+  if (wxSwipeSetup) return;
+  wxSwipeSetup = true;
+  const vp    = document.getElementById('p2-wx-viewport');
+  const wxTrk = document.getElementById('p2-wx-track');
+  let sx = 0, sy = 0, basePct = 0, active = false, isH = null;
+
+  function numDays() { return wxForecast.length || 1; }
+  function pctPerSlide() { return 100 / numDays(); }
+  function wxBasePct() { return -wxDayIdx * pctPerSlide(); }
+
+  function down(e) {
+    const pt = e.touches ? e.touches[0] : e;
+    sx = pt.clientX; sy = pt.clientY;
+    basePct = wxBasePct();
+    active = true; isH = null;
+    wxTrk.style.transition = 'none';
+  }
+  function move(e) {
+    if (!active) return;
+    const pt = e.touches ? e.touches[0] : e;
+    const dx = pt.clientX - sx, dy = pt.clientY - sy;
+    if (isH === null && (Math.abs(dx)>6||Math.abs(dy)>6)) isH = Math.abs(dx) > Math.abs(dy);
+    if (!isH) return;
+    if (e.cancelable) e.preventDefault();
+
+    // pxをvp幅に対する%に変換
+    const vpW = vp.offsetWidth || window.innerWidth;
+    const dxPct = dx / vpW * pctPerSlide();
+    let nx = basePct + dxPct;
+    const minPct = -(numDays() - 1) * pctPerSlide();
+    if (nx > 0)       nx = dxPct * 0.25;
+    if (nx < minPct)  nx = minPct + (nx - minPct) * 0.25;
+    wxTrk.style.transform = `translateX(${nx}%)`;
+  }
+  function up(e) {
+    wxTrk.style.transition = '';
+    if (!active || !isH) { active=false; return; }
+    active = false;
+    const pt = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = pt.clientX - sx;
+    const vpW = vp.offsetWidth || window.innerWidth;
+    const dxPct = dx / vpW * pctPerSlide();
+    const rawPct  = basePct + dxPct;
+    const nearest = Math.round(-rawPct / pctPerSlide());
+    const flick   = Math.abs(dx) > 40;
+    let target = nearest;
+    if (flick && dx < 0) target = Math.max(nearest, wxDayIdx + 1);
+    if (flick && dx > 0) target = Math.min(nearest, wxDayIdx - 1);
+    renderP2Day(Math.max(0, Math.min(numDays() - 1, target)));
+  }
+  let md = false;
+  vp.addEventListener('mousedown',  e => { down(e); md=true; });
+  window.addEventListener('mousemove', e => { if(md) move(e); });
+  window.addEventListener('mouseup',   e => { if(!md) return; md=false; up(e); });
+  vp.addEventListener('touchstart', down, {passive:true});
+  vp.addEventListener('touchmove',  move, {passive:false});
+  vp.addEventListener('touchend',   up);
+}
+
+document.getElementById('p2-prev-day').addEventListener('click', () => renderP2Day(Math.max(0, wxDayIdx-1)));
+document.getElementById('p2-next-day').addEventListener('click', () => renderP2Day(Math.min((wxForecast.length||7)-1, wxDayIdx+1)));
+
 async function loadNews() {
   try {
     const feeds = await (await fetch('/api/news')).json();
-    const all   = feeds.flatMap(f => f.items||[]);
+    const all   = feeds.flatMap(f => (f.items||[]).map(it => ({...it, src: f.name})));
 
     const tHtml = all.slice(0,35).map(it =>
       `<span class="ti">▶ ${h(it.title)}</span>`
@@ -575,15 +1340,11 @@ async function loadNews() {
     document.getElementById('ticker-inner').innerHTML = tHtml + '<span class="ti-sep">●</span>' + tHtml;
 
     const ns = document.getElementById('news-scroll');
-    const cards = all.slice(0, 40).map(it => {
-      const titleEl = CFG.compactNews
-        ? `<div class="nc-title">${h(it.title)}</div>`
-        : `<a href="${h(it.link)}" target="_blank" rel="noopener"><div class="nc-title">${h(it.title)}</div></a>`;
+    const cards = all.slice(0,40).map(it => {
       const linkEl = it.link
-        ? `<div class="nc-link"><a href="${h(it.link)}" target="_blank" rel="noopener" style="color:var(--accent)">🔗 記事を開く</a></div>`
-        : '';
+        ? `<div class="nc-link"><a href="${h(it.link)}" target="_blank" rel="noopener" style="color:var(--accent)">🔗 記事を開く</a></div>` : '';
       return `<div class="nc">
-        ${titleEl}
+        <div class="nc-title">${h(it.title)}</div>
         <div class="nc-desc">${h(it.desc||'')}</div>
         <div class="nc-footer">
           <div class="nc-meta">${h((it.pub||'').slice(0,22))}</div>
@@ -592,55 +1353,48 @@ async function loadNews() {
       </div>`;
     }).join('');
     ns.innerHTML = `<div class="news-grid">${cards}</div>`;
+
+    const shuffled = [...all].sort(() => Math.random() - 0.5);
+    const p3 = document.getElementById('p3-canvas');
+
+    const cnt = document.getElementById('p3-handle-count');
+    if (cnt) cnt.textContent = `${all.length} 件が収録されています:`;
+    const srcEl = document.getElementById('p3-handle-sources');
+    if (srcEl) {
+      const srcNames = feeds.map(f => f.name).filter(Boolean);
+      srcEl.innerHTML = srcNames.map(n => `<span>・${h(n)}</span>`).join('');
+    }
+
+    const tiles = shuffled.slice(0, 40).map(it => {
+      const linkEl = it.link
+        ? `<div class="nt-link"><a href="${h(it.link)}" target="_blank" rel="noopener">🔗 記事を開く</a></div>` : '';
+      return `<div class="nt">
+        <div class="nt-src">${h(it.src||'')}</div>
+        <div class="nt-title">${h(it.title)}</div>
+        <div class="nt-body">${h(it.desc||'')}</div>
+        <div class="nt-meta">${h((it.pub||'').slice(0,22))}</div>
+        ${linkEl}
+      </div>`;
+    }).join('');
+    p3.innerHTML = tiles;
+
   } catch(e) {
     document.getElementById('news-scroll').innerHTML =
       `<div class="loader">ニュース取得失敗: ${h(e.message)}</div>`;
   }
 }
 
-async function loadDisaster() {
-  try {
-    const feeds = await (await fetch('/api/disaster')).json();
-    const bar   = document.getElementById('disaster-bar');
-    const items = document.getElementById('disaster-items');
-    const all   = feeds.flatMap(f => f.items||[]);
-
-    if (!all.length) {
-
-      bar.classList.add('visible');
-      bar.querySelector('.dis-icon').textContent = '✅';
-      items.innerHTML = '<span class="dis-ok">現在、発令中の緊急情報はありません</span>';
-    } else {
-      bar.classList.add('visible');
-      bar.querySelector('.dis-icon').textContent = '🚨';
-      items.innerHTML = all.slice(0,8).map(it =>
-        `<span class="dis-item" title="${h(it.desc)}">${h(it.title)}</span>`
-      ).join('');
-    }
-  } catch {
-  }
-}
-
-function h(s) {
-  return String(s||'')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 const FX_PAIRS = [
-  { base:'usd', label:'USD/JPY 米ドル/日本円'},
-  { base:'eur', label:'EUR/JPY ユーロ/日本円'},
-  { base:'cny', label:'CNY/JPY 人民元/日本円'},
+  { base:'usd', label:'USD/JPY 米ドル/日本円' },
+  { base:'eur', label:'EUR/JPY ユーロ/日本円' },
+  { base:'cny', label:'CNY/JPY 人民元/日本円' },
 ];
-const fxPeriod = '1w';
-let fxData   = {};
+let fxData = {};
 
 function isoDate(offsetDays=0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
+  const d = new Date(); d.setDate(d.getDate()+offsetDays);
   return d.toISOString().slice(0,10);
 }
-
 async function fetchRate(dateStr, base) {
   const urls = [
     `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateStr}/v1/currencies/${base}.min.json`,
@@ -648,31 +1402,23 @@ async function fetchRate(dateStr, base) {
   ];
   for (const url of urls) {
     try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const j = await r.json();
-      return j[base]['jpy'];
+      const r = await fetch(url); if (!r.ok) continue;
+      const j = await r.json(); return j[base]['jpy'];
     } catch {}
   }
   return null;
 }
-
 async function loadForex() {
-  const yday     = isoDate(-1);
-  const lastWeek = isoDate(-7);
+  const yday = isoDate(-1), wk = isoDate(-7);
   try {
     const bases = FX_PAIRS.map(p => p.base);
-    const [lt, yd, wk] = await Promise.all([
+    const [lt, yd, wkd] = await Promise.all([
       Promise.all(bases.map(b => fetchRate('latest', b))),
-      Promise.all(bases.map(b => fetchRate(yday,     b))),
-      Promise.all(bases.map(b => fetchRate(lastWeek, b))),
+      Promise.all(bases.map(b => fetchRate(yday, b))),
+      Promise.all(bases.map(b => fetchRate(wk, b))),
     ]);
     fxData = { latest:{}, prev1d:{}, prev1w:{} };
-    bases.forEach((b,i) => {
-      fxData.latest[b] = lt[i];
-      fxData.prev1d[b] = yd[i];
-      fxData.prev1w[b] = wk[i];
-    });
+    bases.forEach((b,i) => { fxData.latest[b]=lt[i]; fxData.prev1d[b]=yd[i]; fxData.prev1w[b]=wkd[i]; });
     const now = new Date();
     document.getElementById('forex-updated').textContent =
       `最終更新 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -682,119 +1428,494 @@ async function loadForex() {
       `<div class="loader" style="padding:8px;width:100%">取得失敗: ${h(e.message)}</div>`;
   }
 }
-
 function renderForex() {
   if (!fxData.latest) return;
-  const prev  = fxData.prev1w;
-  const label = '前週比';
-  const html  = FX_PAIRS.map(p => {
+  const prev = fxData.prev1w;
+  const html = FX_PAIRS.map(p => {
     const cur = fxData.latest[p.base];
     const old = prev[p.base];
-    if (cur == null) return `
-      <div class="fx-card">
-        <div class="fx-pair">${p.label}</div>
-        <div class="fx-rate">—</div>
-      </div>`;
-    const diff  = (old != null) ? cur - old : null;
-    const pct   = (old != null && old !== 0) ? (diff / old * 100) : null;
-    const sign  = diff > 0 ? '+' : '';
-    const cls   = diff == null ? 'flat' : diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
-    const arrow = diff == null ? '─' : diff > 0 ? '▲' : diff < 0 ? '▼' : '─';
-    const changeHtml = diff != null
+    if (cur == null) return `<div class="fx-card"><div class="fx-pair">${p.label}</div><div class="fx-rate">—</div></div>`;
+    const diff = old != null ? cur - old : null;
+    const pct  = old != null && old !== 0 ? diff / old * 100 : null;
+    const sign = diff > 0 ? '+' : '';
+    const cls  = diff == null ? 'flat' : diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+    const arrow= diff == null ? '─' : diff > 0 ? '▲' : diff < 0 ? '▼' : '─';
+    const chg  = diff != null
       ? `<div class="fx-change ${cls}">${arrow} ${sign}${diff.toFixed(2)} (${sign}${pct.toFixed(2)}%)</div>`
       : `<div class="fx-change flat">─</div>`;
-    return `
-      <div class="fx-card">
-        <div class="fx-pair">${p.label}</div>
-        <div class="fx-rate">${cur.toFixed(2)}<span>円</span></div>
-        ${changeHtml}
-        <div class="fx-label">${label}</div>
-      </div>`;
+    return `<div class="fx-card">
+      <div class="fx-pair">${p.label}</div>
+      <div class="fx-rate">${cur.toFixed(2)}<span>円</span></div>
+      ${chg}
+      <div class="fx-label">前週比</div>
+    </div>`;
   }).join('');
   document.getElementById('forex-cards').innerHTML = html;
 }
 
-// ── apply server-injected config ──────────────────────────────
-const CFG = window.MONITOR_CONFIG || {};
-if (CFG.compactClock)  document.body.classList.add('compact-clock');
-if (CFG.compactNews)   document.body.classList.add('compact-news');
-if (CFG.mouseHide)     document.body.classList.add('mouse-hide');
+function h(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// ── wake lock ─────────────────────────────────────────────────
+const CFG = window.MONITOR_CONFIG || {};
+if (CFG.compactClock) document.body.classList.add('compact-clock');
+if (CFG.compactNews)  document.body.classList.add('compact-news');
+if (CFG.mouseHide)    document.body.classList.add('mouse-hide');
+
 if (CFG.wakeLock && 'wakeLock' in navigator) {
   let wakeLock = null;
   async function acquireWakeLock() {
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-    } catch {}
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
   }
-  // ページが再表示されたとき（タブ切替後など）に再取得
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') acquireWakeLock();
   });
   acquireWakeLock();
 }
 
-// ── drag / touch scroll ───────────────────────────────────────
-function enableDragScroll(el) {
-  let startY = 0, startX = 0, scrollY = 0, scrollX = 0, dragging = false;
+function enableDragScroll(el, mode) {
+  let sY=0, sX=0, scY=0, scX=0, drag=false, isH=null;
 
   function onDown(e) {
-    dragging = true;
-    startY  = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
-    startX  = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
-    scrollY = el.scrollTop;
-    scrollX = el.scrollLeft;
+    drag=true; isH=null;
+    const t = e.touches ? e.touches[0] : e;
+    sY=t.clientY; sX=t.clientX;
+    scY=el.scrollTop; scX=el.scrollLeft;
     el.classList.add('dragging');
-    if (e.type === 'mousedown') e.preventDefault();
+    if (e.type==='mousedown') e.preventDefault();
   }
   function onMove(e) {
-    if (!dragging) return;
-    const cy = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
-    const cx = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
-    el.scrollTop  = scrollY - (cy - startY);
-    el.scrollLeft = scrollX - (cx - startX);
-  }
-  function onUp() { dragging = false; el.classList.remove('dragging'); }
+    if (!drag) return;
+    const t = e.touches ? e.touches[0] : e;
+    const dy = t.clientY - sY, dx = t.clientX - sX;
 
-  el.addEventListener('mousedown',  onDown,  { passive: false });
+    if (isH === null && (Math.abs(dx)>4 || Math.abs(dy)>4)) {
+      if      (mode === 'horizontal') isH = true;
+      else if (mode === 'vertical')   isH = false;
+      else                            isH = Math.abs(dx) > Math.abs(dy);
+    }
+    if (isH === null) return;
+    if (isH && mode !== 'vertical')   el.scrollLeft = scX - dx;
+    if (!isH && mode !== 'horizontal') el.scrollTop = scY - dy;
+    if (!isH && e.cancelable) e.preventDefault();
+  }
+  function onUp() { drag=false; isH=null; el.classList.remove('dragging'); }
+
+  el.addEventListener('mousedown',  onDown, { passive:false });
   el.addEventListener('mousemove',  onMove);
   el.addEventListener('mouseup',    onUp);
   el.addEventListener('mouseleave', onUp);
-  el.addEventListener('touchstart', onDown,  { passive: true });
-  el.addEventListener('touchmove',  onMove,  { passive: true });
+  el.addEventListener('touchstart', onDown, { passive:true });
+  el.addEventListener('touchmove',  onMove, { passive:false });
   el.addEventListener('touchend',   onUp);
 }
 
-document.querySelectorAll('.drag-scroll').forEach(enableDragScroll);
+// PAGE1
+enableDragScroll(document.getElementById('weekly-scroll'),   'vertical');
+enableDragScroll(document.getElementById('news-scroll'),     'vertical');
+enableDragScroll(document.getElementById('hourly-strip'),    'horizontal');
+// PAGE2
+enableDragScroll(document.getElementById('p2-hourly-strip'), 'horizontal');
+// PAGE3（右側ニュース縦スクロール）
+enableDragScroll(document.getElementById('p3-canvas'),       'vertical');
+// PAGE4（音楽ツリー縦スクロール）
+enableDragScroll(document.getElementById('mu-tree'),         'vertical');
+// PAGE5（コマンドリスト縦スクロール）
+enableDragScroll(document.getElementById('cmd-list'),        'vertical');
 
-// ── compact-news card expand (delegate on news-scroll) ────────
+// compact-news カード展開
 document.getElementById('news-scroll').addEventListener('click', function(e) {
   if (!CFG.compactNews) return;
   const card = e.target.closest('.nc');
   if (card) {
-    this.querySelectorAll('.nc.expanded').forEach(c => { if (c !== card) c.classList.remove('expanded'); });
+    this.querySelectorAll('.nc.expanded').forEach(c => { if(c!==card) c.classList.remove('expanded'); });
     card.classList.toggle('expanded');
     e.stopPropagation();
   }
 });
 document.addEventListener('click', function(e) {
   if (!CFG.compactNews) return;
-  if (!e.target.closest('#news-scroll')) {
+  if (!e.target.closest('#news-scroll'))
     document.querySelectorAll('.nc.expanded').forEach(c => c.classList.remove('expanded'));
+});
+
+const audio = new Audio();
+audio.preload = 'auto';
+
+let muFiles   = [];     // フラット化した全ファイルリスト
+let muIdx     = -1;     // 現在のインデックス
+let muMode    = 'seq';  // 'seq' | 'rand' | 'loop'
+let muSeeking = false;
+
+// ── スコープ限定ユーティリティ ──
+function muScopeDir() {
+  // チェックON かつ 曲が選択されているとき、親フォルダパスを返す
+  if (!document.getElementById('mu-scope-chk').checked) return null;
+  if (muIdx < 0) return null;
+  const f = muFiles[muIdx];
+  // path = "a/b/song.mp3" → dir = "a/b"
+  const parts = f.path.split('/');
+  parts.pop();
+  return parts.join('/'); // ルート直下なら ""
+}
+
+function muScopedFiles() {
+  const dir = muScopeDir();
+  if (dir === null) return muFiles;
+  // dir が "" → ルート直下のファイルのみ、それ以外 → dir/ で始まるもの
+  return muFiles.filter(f => {
+    const parts = f.path.split('/');
+    parts.pop();
+    const fdir = parts.join('/');
+    // fdir が dir と一致、または dir の子孫であること
+    return fdir === dir || fdir.startsWith(dir + '/');
+  });
+}
+
+function muScopedIdx(globalIdx) {
+  // globalIdx (muFiles上) を muScopedFiles() 上のインデックスに変換
+  const scoped = muScopedFiles();
+  return scoped.findIndex(f => f.path === muFiles[globalIdx]?.path);
+}
+
+function muGlobalIdx(scopedIdx) {
+  // muScopedFiles() 上のインデックスを muFiles 上のインデックスに変換
+  const scoped = muScopedFiles();
+  const f = scoped[scopedIdx];
+  if (!f) return -1;
+  return muFiles.findIndex(mf => mf.path === f.path);
+}
+
+function muUpdateScopeLabel() {
+  const chk = document.getElementById('mu-scope-chk');
+  const lbl = document.getElementById('mu-scope-label');
+  if (!chk.checked || muIdx < 0) {
+    lbl.textContent = 'フォルダを限定しない';
+    return;
+  }
+  const f = muFiles[muIdx];
+  const parts = f.path.split('/');
+  parts.pop();
+  const dir = parts.join('/');
+  lbl.textContent = dir ? `${dir}/* に範囲を限定する` : `(ルート)/* に範囲を限定する`;
+}
+
+// ── フラット化ユーティリティ ──
+function flattenTree(nodes) {
+  const out = [];
+  function walk(n) {
+    if (n.type === 'file') out.push(n);
+    else if (n.children) n.children.forEach(walk);
+  }
+  nodes.forEach(walk);
+  return out;
+}
+
+// ── フォーマット：秒 → m:ss ──
+function fmtTime(s) {
+  if (!isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return `${m}:${ss.toString().padStart(2,'0')}`;
+}
+
+// ── シークバー更新 ──
+audio.addEventListener('timeupdate', () => {
+  if (muSeeking) return;
+  const pct = audio.duration ? audio.currentWidth / audio.duration * 100 : 0;
+  const p   = audio.duration ? audio.currentTime  / audio.duration * 100 : 0;
+  document.getElementById('mu-seek-fill').style.width  = p + '%';
+  document.getElementById('mu-seek-thumb').style.left  = p + '%';
+  document.getElementById('mu-cur').textContent = fmtTime(audio.currentTime);
+  document.getElementById('mu-dur').textContent = fmtTime(audio.duration);
+});
+
+// ── 再生終了 → 次の曲 ──
+audio.addEventListener('ended', () => {
+  const scoped = muScopedFiles();
+  if (muMode === 'loop') {
+    audio.currentTime = 0; audio.play();
+  } else if (muMode === 'rand') {
+    const si = Math.floor(Math.random() * scoped.length);
+    muPlayIdx(muGlobalIdx(si));
+  } else {
+    const curSi = muScopedIdx(muIdx);
+    const nextSi = curSi + 1;
+    if (nextSi < scoped.length) muPlayIdx(muGlobalIdx(nextSi));
+    else { muIdx = -1; muUpdateUI(); }
   }
 });
 
+// ── 曲を再生 ──
+function muPlayIdx(idx) {
+  if (idx < 0 || idx >= muFiles.length) return;
+  muIdx = idx;
+  const f = muFiles[idx];
+  audio.src = f.url;
+  audio.play().catch(() => {});
+  muUpdateUI();
+  muHighlight();
+}
+
+function muUpdateUI() {
+  const f = muFiles[muIdx];
+  const playing = !audio.paused;
+  const playBtn = document.getElementById('mu-play');
+  playBtn.querySelector('.mu-play-icon').style.display  = playing ? 'none' : '';
+  playBtn.querySelector('.mu-pause-icon').style.display = playing ? '' : 'none';
+  if (f) {
+    const name = f.name.replace(/\.[^.]+$/, '');
+    document.getElementById('mu-title').textContent  = name;
+    document.getElementById('mu-artist').textContent = f.path.replace('/' + f.name, '') || '';
+  }
+  muUpdateScopeLabel();
+}
+
+function muHighlight() {
+  document.querySelectorAll('.mu-file').forEach(el => {
+    el.classList.toggle('active', el.dataset.idx === String(muIdx));
+  });
+}
+
+// ── ツリーをDOMに描画 ──
+function renderMuTree(nodes, container, depth) {
+  nodes.forEach(node => {
+    if (node.type === 'dir') {
+      const div = document.createElement('div');
+      div.className = 'mu-dir';
+      const cnt = flattenTree([node]).length;
+      div.innerHTML = `
+        <div class="mu-dir-label">
+          <span class="mu-dir-arrow">▶</span>
+          <span>📁</span>
+          <span class="mu-dir-name">${h(node.name)}</span>
+          <span class="mu-dir-count">${cnt}</span>
+        </div>
+        <div class="mu-dir-children"></div>`;
+      div.querySelector('.mu-dir-label').addEventListener('click', () => {
+        div.classList.toggle('open');
+      });
+      // 深さ0はデフォルトで開く
+      if (depth === 0) div.classList.add('open');
+      renderMuTree(node.children, div.querySelector('.mu-dir-children'), depth + 1);
+      container.appendChild(div);
+    } else {
+      const fileIdx = muFiles.findIndex(f => f.path === node.path);
+      const div = document.createElement('div');
+      div.className = 'mu-file';
+      div.dataset.idx = fileIdx;
+      div.innerHTML = `<span class="mu-file-name">${h(node.name.replace(/\.[^.]+$/, ''))}</span>`;
+      let _pdX = 0, _pdY = 0;
+      div.addEventListener('pointerdown', e => { _pdX = e.clientX; _pdY = e.clientY; });
+      div.addEventListener('pointerup', e => {
+        if (Math.hypot(e.clientX - _pdX, e.clientY - _pdY) < 8) muPlayIdx(fileIdx);
+      });
+      container.appendChild(div);
+    }
+  });
+}
+
+async function loadMusic() {
+  const tree = document.getElementById('mu-tree');
+  try {
+    const data = await (await fetch('/api/music')).json();
+    muFiles = flattenTree(data);
+    document.getElementById('mu-tree-count').textContent = `${muFiles.length} 曲`;
+    if (muFiles.length === 0) {
+      tree.innerHTML = '<div class="loader" style="opacity:0.5">musicフォルダに音楽ファイルが見つかりません</div>';
+      return;
+    }
+    tree.innerHTML = '';
+    renderMuTree(data, tree, 0);
+    muHighlight();
+  } catch(e) {
+    tree.innerHTML = `<div class="loader">読み込み失敗: ${h(e.message)}</div>`;
+  }
+}
+
+// ── シークバー操作 ──
+(function(){
+  const sk = document.getElementById('mu-seek-track');
+  function getPos(e) {
+    const r = sk.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  }
+  function applySeek(p) {
+    if (audio.duration) audio.currentTime = p * audio.duration;
+    document.getElementById('mu-seek-fill').style.width = (p*100) + '%';
+    document.getElementById('mu-seek-thumb').style.left = (p*100) + '%';
+  }
+  sk.addEventListener('mousedown', e => {
+    e.stopPropagation(); muSeeking = true; applySeek(getPos(e));
+  });
+  window.addEventListener('mousemove', e => { if (muSeeking) applySeek(getPos(e)); });
+  window.addEventListener('mouseup',   () => { muSeeking = false; });
+  sk.addEventListener('touchstart', e => {
+    e.stopPropagation(); muSeeking = true; applySeek(getPos(e.touches[0]));
+  }, { passive: true });
+  sk.addEventListener('touchmove', e => {
+    e.stopPropagation(); applySeek(getPos(e.touches[0]));
+  }, { passive: true });
+  sk.addEventListener('touchend', e => { e.stopPropagation(); muSeeking = false; });
+})();
+
+// ── 音量バー操作 ──
+function muSetVolume(v) {
+  v = Math.max(0, Math.min(1, v));
+  audio.volume = v;
+  document.getElementById('mu-vol-fill').style.width  = (v*100) + '%';
+  document.getElementById('mu-vol-thumb').style.left  = (v*100) + '%';
+}
+(function(){
+  const vt = document.getElementById('mu-vol-track');
+  audio.volume = 0.8; muSetVolume(0.8);
+  function getPos(e) {
+    const r = vt.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  }
+  let vd = false;
+  vt.addEventListener('mousedown', e => { e.stopPropagation(); vd = true; muSetVolume(getPos(e)); });
+  window.addEventListener('mousemove', e => { if (vd) muSetVolume(getPos(e)); });
+  window.addEventListener('mouseup',   () => { vd = false; });
+  vt.addEventListener('touchstart', e => { e.stopPropagation(); vd = true; muSetVolume(getPos(e.touches[0])); }, { passive: true });
+  vt.addEventListener('touchmove',  e => { e.stopPropagation(); muSetVolume(getPos(e.touches[0])); }, { passive: true });
+  vt.addEventListener('touchend',   () => { vd = false; });
+  // +/- ボタン
+  document.getElementById('mu-vol-up').addEventListener('click',   () => muSetVolume(audio.volume + 0.1));
+  document.getElementById('mu-vol-down').addEventListener('click', () => muSetVolume(audio.volume - 0.1));
+})();
+
+// ── 再生/一時停止ボタン ──
+document.getElementById('mu-play').addEventListener('click', () => {
+  if (muIdx < 0 && muFiles.length > 0) { muPlayIdx(0); return; }
+  if (audio.paused) audio.play().catch(()=>{});
+  else audio.pause();
+  muUpdateUI();
+});
+
+// ── 前/次ボタン ──
+document.getElementById('mu-prev').addEventListener('click', () => {
+  if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+  const scoped = muScopedFiles();
+  if (muMode === 'rand') {
+    muPlayIdx(muGlobalIdx(Math.floor(Math.random() * scoped.length)));
+  } else {
+    const curSi = muScopedIdx(muIdx);
+    muPlayIdx(muGlobalIdx(Math.max(0, curSi - 1)));
+  }
+});
+document.getElementById('mu-next').addEventListener('click', () => {
+  const scoped = muScopedFiles();
+  if (muMode === 'rand') {
+    muPlayIdx(muGlobalIdx(Math.floor(Math.random() * scoped.length)));
+  } else {
+    const curSi = muScopedIdx(muIdx);
+    muPlayIdx(muGlobalIdx(Math.min(scoped.length - 1, curSi + 1)));
+  }
+});
+
+// ── モードボタン ──
+['seq','rand','loop'].forEach(mode => {
+  document.getElementById(`mu-mode-${mode}`).addEventListener('click', () => {
+    muMode = mode;
+    document.querySelectorAll('.mu-mode-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`mu-mode-${mode}`).classList.add('active');
+  });
+});
+
+// ── スコープチェックボックス ──
+document.getElementById('mu-scope-chk').addEventListener('change', muUpdateScopeLabel);
+
+// 再生状態が変わるたびにUIを同期
+audio.addEventListener('play',  muUpdateUI);
+audio.addEventListener('pause', muUpdateUI);
+
+let cmdLocked = false; // 3秒間のロック状態
+
+async function loadCommands() {
+  const list = document.getElementById('cmd-list');
+  const cntEl = document.getElementById('cmd-handle-count');
+  try {
+    const cmds = await (await fetch('/api/commands')).json();
+    if (cntEl) cntEl.textContent = `${cmds.length} 件が登録されています`;
+    if (!cmds.length) {
+      list.innerHTML = '<div class="loader" style="opacity:0.5">commands.json が見つからないか空です</div>';
+      return;
+    }
+    list.innerHTML = '';
+    cmds.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'cmd-btn';
+      btn.innerHTML = `<span class="cmd-btn-name">${h(item.name || '無名')}</span>`;
+
+      let pdX = 0, pdY = 0;
+      btn.addEventListener('pointerdown', e => { pdX = e.clientX; pdY = e.clientY; });
+      btn.addEventListener('pointerup', e => {
+        const dist = Math.hypot(e.clientX - pdX, e.clientY - pdY);
+        if (dist < 8) runCommand(item);
+      });
+
+      list.appendChild(btn);
+    });
+  } catch(e) {
+    if (cntEl) cntEl.textContent = '読み込み失敗';
+    list.innerHTML = `<div class="loader">読み込み失敗: ${h(e.message)}</div>`;
+  }
+}
+
+async function runCommand(item) {
+  if (cmdLocked) return;
+
+  cmdLocked = true;
+  const allBtns = document.querySelectorAll('.cmd-btn');
+  allBtns.forEach(b => b.disabled = true);
+
+  const status = document.getElementById('cmd-status');
+  status.textContent = `▶ 実行中: ${item.name}`;
+  status.className = '';
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmd: item.cmd }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = `✓ 完了: ${item.name}`;
+      status.className = 'ok';
+    } else {
+      status.textContent = `✗ エラー: ${data.error || '不明'}`;
+      status.className = 'fail';
+    }
+  } catch(e) {
+    status.textContent = `✗ 通信エラー: ${e.message}`;
+    status.className = 'fail';
+  }
+
+  setTimeout(() => {
+    cmdLocked = false;
+    allBtns.forEach(b => b.disabled = false);
+
+    setTimeout(() => {
+      if (status.textContent.startsWith('✓') || status.textContent.startsWith('✗')) {
+        status.textContent = '';
+        status.className = '';
+      }
+    }, 2000);
+  }, 3000);
+}
+
+loadMusic();
+loadCommands();
+
 loadWeather();
 loadNews();
-loadDisaster();
 loadForex();
-setInterval(loadWeather,  10*60*1000);
-setInterval(loadNews,      5*60*1000);
-setInterval(loadDisaster,  3*60*1000);
+setInterval(loadWeather,  30*60*1000);
+setInterval(loadNews,     10*60*1000);
 setInterval(loadForex,    60*60*1000);
+setTimeout(() => location.reload(), 6*60*60*1000);
 
-setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
 </script>
 </body>
 </html>
