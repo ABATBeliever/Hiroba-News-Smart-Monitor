@@ -1,0 +1,84 @@
+# Hiroba News Smart Monitor 設定ファイル
+# 変更したら run.py を再起動してください(画面の再読み込みだけでは反映されません)
+# Windowsのパスや正規表現は、バックスラッシュが多いので '...'(シングルクォート)で囲むと楽です
+
+[server]
+host = "localhost"   # このPCだけで見る: "localhost" / 同じネットワークのタブレット等から見る: "0.0.0.0"
+port = 8765          # ※"0.0.0.0" にすると、同じネットワークの誰でもコマンドページを操作できます
+
+[display]
+# 表示するページと並び順。使わないページは消すだけで非表示になります
+# home=ホーム / weather=天気 / news=ニュース / music=音楽 / command=コマンド
+pages = ["home", "weather", "news", "music", "command"]
+show_seconds = true         # 時計の秒表示(ホームを見ている間だけ1秒ごとに更新。省電力優先なら false)
+idle_return_sec = 120      # 操作がないときホームに戻るまでの秒数(0で戻らない)
+hide_cursor = false         # マウスカーソルを隠す(タッチパネル端末向け)
+fullscreen_on_tap = true    # 画面をタップすると全画面にする
+wake_lock = true            # 画面が暗くなるのを防ぐ(httpsまたはlocalhostで開いたときだけ有効)
+
+[background]
+dir = "images"              # 背景画像フォルダ。空("")にすると背景なし。jpg/png/webp/gif/avif
+interval_sec = 30           # 切り替え間隔(秒)。0で切り替えず1枚だけ表示
+dim = 0.55                  # 暗幕の濃さ 0〜0.95(文字の読みやすさ)
+
+[location]
+name = "東京"               # 天気ページに表示する地名
+lat = 35.6895               # 緯度(Googleマップで右クリックすると調べられます)
+lon = 139.6917              # 経度
+timezone = "Asia/Tokyo"
+
+[weather]
+refresh_min = 30            # 天気を取り直す間隔(分)
+
+[fx]
+# ホームの左下に出す為替(対円)。通貨コード3文字。空の配列 [] にすると非表示
+# ECBベースの日次レート(リアルタイムではありません)。前週比を表示します
+pairs = ["usd", "eur", "cny"]
+refresh_min = 60
+
+[news]
+# RSS/Atomフィード。複数書くと交互に並びます
+feeds = [
+  "https://www3.nhk.or.jp/rss/news/cat0.xml",
+  "https://feeds.bbci.co.uk/japanese/rss.xml",
+  "https://gigazine.net/news/rss_2.0/",
+]
+count = 20                  # ニュースページの最大件数
+home_count = 6              # ホームに出す見出しの件数
+refresh_min = 10
+
+[music]
+dir = "music"               # 音楽フォルダ。サブフォルダも読みます
+volume = 0.8                # 起動時の音量 0〜1
+mode = "seq"                # 再生モード: "seq"=順番 / "rand"=ランダム / "one"=1曲リピート
+
+# コマンドページに並ぶボタン。上から順に表示されます
+#   cmd     : 文字列ならシェル経由で実行 / ["プログラム", "引数", ...] の配列ならそのまま直接実行
+#   confirm : true にすると「もう一度タップで実行」の確認が入ります(再起動など用)
+# 実行できるのは、ここに書いたコマンドだけです
+
+[[commands]]
+name = "画面輝度を最大にする(Linux)"
+cmd = ["brightnessctl", "set", "255"]
+
+[[commands]]
+name = "画面輝度を最小にする(Linux)"
+cmd = ["brightnessctl", "set", "1"]
+
+[[commands]]
+name = "画面輝度を最大にする(Windows)"
+cmd = 'powershell -NoProfile -Command "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,100)"'
+
+[[commands]]
+name = "画面輝度を最小にする(Windows)"
+cmd = 'powershell -NoProfile -Command "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,1)"'
+
+[[commands]]
+name = "再起動(Linux)"
+cmd = ["systemctl", "reboot"]
+confirm = true
+
+[[commands]]
+name = "再起動(Windows)"
+cmd = "shutdown -r -t 0"
+confirm = true
